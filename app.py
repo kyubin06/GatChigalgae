@@ -173,7 +173,7 @@ TRANSPORT_RADIUS = {
 }
 
 # MongoDB 연결
-client = MongoClient("mongodb://localhost:27017/", serverSelectionTimeoutMS=2000)
+client = MongoClient(os.environ.get("MONGO_URI"))
 db = client['withgaegae']
 
 
