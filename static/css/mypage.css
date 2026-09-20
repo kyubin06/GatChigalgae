@@ -1,0 +1,106 @@
+.dash-hd {
+  background: var(--paper2);
+  border-bottom: 1px solid var(--line);
+}
+
+.dash {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dash-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  padding: 26px 28px;
+}
+
+.ongoing {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 26px 28px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.ongoing .prog {
+  margin-top: 18px;
+  height: 4px;
+  background: rgba(255, 255, 255, .2);
+  overflow: hidden;
+}
+
+.ongoing .prog i {
+  display: block;
+  height: 100%;
+  background: #7fd39b;
+}
+
+.trip-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.trip-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 18px 20px;
+}
+
+.mini {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14.5px;
+  cursor: pointer;
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+}
+
+@media(max-width:900px){
+  .dash-row, .trip-list { grid-template-columns: 1fr; }
+  .dash-hd-in { padding: 0 26px; }
+  .dash { padding: 20px; }
+}
+/* 반려견 추가 버튼은 +만 깔끔하게 표시 */
+.btn-add-dog {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--line2);
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  transition: .18s;
+  color: var(--accent);
+}
+.btn-add-dog:hover { border-color: var(--accent); transform: translateY(-1px); }
+.dog-name-link { cursor: pointer; }
+.dog-mini:hover .dog-name-link { color: var(--accent); }
+.panel .btn-add-dog { width:46px; height:46px; border-radius:50%; background:var(--card); border:1px solid var(--line2); box-shadow:0 2px 8px rgba(0,0,0,.06); font-size:24px; display:inline-grid; place-items:center; color:var(--accent); }
+.panel .btn-add-dog:hover { border-color:var(--accent); transform:translateY(-1px); }

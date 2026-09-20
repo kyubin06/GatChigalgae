@@ -1,0 +1,59 @@
+.flow {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 40px 80px;
+}
+
+.flow-step {
+  display: none;
+}
+
+.flow-step.active {
+  display: block;
+}
+
+.flow-q {
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.flow-input {
+  width: 100%;
+  padding: 16px;
+  font-size: 16px;
+  border: 1px solid var(--line2);
+  background: var(--card);
+  outline: none;
+  margin-bottom: 12px;
+}
+
+.opt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.opt {
+  background: var(--card);
+  border: 1px solid var(--line2);
+  padding: 24px;
+  cursor: pointer;
+}
+
+.opt.on {
+  border-color: var(--accent);
+  background: #f0f4ef;
+}
+
+.flow-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 36px;
+}
+
+@media(max-width:600px){
+  .opt-grid { grid-template-columns: 1fr; }
+}

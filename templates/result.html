@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block style %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="result-top">
+  <div class="search">
+    <input type="text" id="res-search-loc" style="padding:10px;" value="{{ location }}">
+    <select style="padding:10px;">
+      <option>등록된 반려동물 매칭 적용</option>
+    </select>
+    <button class="nav-cta" onclick="loadPlaces()">다시 검색</button>
+  </div>
+</div>
+
+<div class="result-section">
+  <h2>📍 <span id="loc-title">{{ location }}</span> 주변 리얼 타임 분석 정보</h2>
+  <div class="grid" id="places-grid" style="margin-top:20px;"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  loadPlaces();
+});
+
+function loadPlaces() {
+  const grid = document.getElementById('places-grid');
+  const loc = document.getElementById('res-search-loc').value;
+  document.getElementById('loc-title').innerText = loc;
+  
+  fetch('/api/places')
+    .then(res => res.json())
+    .then(data => {
+      grid.innerHTML = data.map((p, i) => `
+        <div class="place">
+          <div>
+            <span class="badge ${p.grade}">${p.label}</span>
+            <h3 style="font-family:var(--serif);">${p.nm}</h3>
+          </div>
+          <p style="font-size:13px; color:var(--ink3); margin:8px 0;">${p.type} · ${p.dist} · 📞 ${p.tel}</p>
+          <div style="font-size:14px; margin-top:10px; flex:1;">${p.reason || '동반 입장 가이드라인을 확인하세요.'}</div>
+          
+          <div class="place-detail" id="detail-${i}">
+            <p><b>허용 구역:</b> ${p.zone}</p>
+            <p><b>제한 조건:</b> ${p.breed}</p>
+            <p><b>원문내용:</b> ${p.src || '특이사항 없음'}</p>
+          </div>
+          
+          <button class="btn-block" style="margin-top:15px; background:var(--paper2); color:var(--ink);" 
+            onclick="document.getElementById('detail-${i}').classList.toggle('open')">
+            공공데이터 상세 교차검증 근거 보기
+          </button>
+        </div>
+      `).join('');
+    });
+}
+</script>
+{% endblock %}

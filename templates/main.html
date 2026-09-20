@@ -1,0 +1,283 @@
+{% extends 'base.html' %}
+
+{% block style %}
+<style>
+  .home { max-width:1500px; margin:0 auto; padding:0 40px 80px; }
+  .home-hero { min-height:510px; display:grid; grid-template-columns:1.08fr .92fr; gap:56px; align-items:center; padding:72px 0 62px; }
+  .home-eyebrow { font-size:12px; letter-spacing:.16em; font-weight:700; color:var(--accent); margin-bottom:18px; }
+  .home-hero h1 { font-family:var(--serif); font-size:58px; line-height:1.18; letter-spacing:-.04em; margin-bottom:22px; }
+  .home-hero h1 em { color:var(--accent); font-style:normal; }
+  .home-copy { font-size:17px; color:var(--ink2); max-width:560px; line-height:1.75; margin-bottom:28px; }
+  .home-actions { display:flex; gap:10px; flex-wrap:wrap; }
+  .home-primary, .home-secondary { padding:14px 22px; border:none; font-size:14.5px; font-weight:700; cursor:pointer; }
+  .home-primary { background:var(--ink); color:var(--paper); }
+  .home-primary:hover { background:var(--accent); }
+  .home-secondary { background:var(--card); color:var(--ink); border:1px solid var(--line2); }
+  .home-secondary:hover { border-color:var(--accent); }
+
+  .personal-card { background:var(--card); border:1px solid var(--line2); padding:30px; position:relative; overflow:hidden; }
+  .personal-card:before { content:""; position:absolute; left:0; top:0; width:5px; height:100%; background:var(--accent); }
+  .personal-kicker { font-size:12px; font-weight:700; color:var(--accent); letter-spacing:.08em; }
+  .personal-title { font-family:var(--serif); font-size:26px; font-weight:700; margin-top:8px; }
+  .personal-sub { color:var(--ink2); font-size:13.5px; margin-top:5px; }
+  .dog-list { display:flex; flex-wrap:wrap; gap:9px; margin:22px 0; }
+  .dog-chip-home { display:flex; align-items:center; gap:9px; padding:9px 12px; background:var(--paper); border:1px solid var(--line); }
+  .dog-dot { width:28px; height:28px; border-radius:50%; background:var(--paper2); display:grid; place-items:center; font-size:14px; overflow:hidden; }
+  .dog-dot img { width:100%; height:100%; object-fit:cover; }
+  .dog-chip-home b { font-size:13.5px; }
+  .dog-chip-home small { display:block; color:var(--ink3); font-size:11.5px; }
+  .personal-trip { margin-top:18px; padding-top:18px; border-top:1px solid var(--line); }
+  .personal-trip .pt-label { font-size:12px; color:var(--ink3); margin-bottom:4px; }
+  .personal-trip b { font-size:15px; }
+  .personal-trip .pt-meta { font-size:12.5px; color:var(--ink2); margin-top:3px; }
+  .personal-empty { margin-top:20px; padding:15px; background:var(--paper); color:var(--ink2); font-size:13px; border:1px dashed var(--line2); }
+
+  .home-section { padding:72px 0 0; }
+  .home-section .eyebrow { font-size:12px; letter-spacing:.16em; font-weight:700; color:var(--accent); margin-bottom:9px; }
+  .home-section h2 { font-family:var(--serif); font-size:30px; margin-bottom:8px; }
+  .home-section > p { font-size:15px; color:var(--ink2); }
+  .feature-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:24px; }
+  .feature { background:var(--card); border:1px solid var(--line); padding:26px 24px; min-height:190px; }
+  .feature .ico { font-size:25px; }
+  .feature h3 { font-family:var(--serif); font-size:19px; margin:10px 0 6px; }
+  .feature p { color:var(--ink2); font-size:13.5px; line-height:1.65; }
+
+  .flow { display:grid; grid-template-columns:repeat(3,1fr); border:1px solid var(--line2); margin-top:24px; }
+  .flow-item { background:var(--card); padding:27px 26px; border-right:1px solid var(--line); }
+  .flow-item:last-child { border-right:none; }
+  .flow-no { color:var(--accent); font-size:12px; font-weight:700; letter-spacing:.08em; }
+  .flow-item h3 { font-family:var(--serif); font-size:19px; margin:7px 0; }
+  .flow-item p { color:var(--ink2); font-size:13.5px; }
+
+  .trust { margin-top:72px; background:var(--ink); color:var(--paper); padding:34px 38px; display:grid; grid-template-columns:1fr 2fr; gap:40px; align-items:center; }
+  .trust h2 { font-family:var(--serif); font-size:27px; }
+  .trust p { color:rgba(239,233,221,.76); font-size:13.5px; line-height:1.75; }
+  .trust-points { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  .trust-point { border-left:1px solid rgba(239,233,221,.25); padding-left:17px; }
+  .trust-point b { display:block; font-size:15px; }
+  .trust-point span { display:block; color:rgba(239,233,221,.65); font-size:12px; margin-top:4px; }
+
+  @media(max-width:900px){
+    .home { padding:0 24px 60px; }
+    .home-hero { grid-template-columns:1fr; gap:30px; padding:52px 0 44px; }
+    .home-hero h1 { font-size:42px; }
+    .feature-grid,.flow { grid-template-columns:1fr; }
+    .flow-item { border-right:none; border-bottom:1px solid var(--line); }
+    .flow-item:last-child { border-bottom:none; }
+    .trust { grid-template-columns:1fr; }
+    .trust-points { grid-template-columns:1fr; }
+  }
+
+  /* 홈 모달용(마이페이지 css 없이 동작하도록 자체 포함) */
+  .mfield { margin-bottom:14px; }
+  .mfield label { display:block; font-size:13px; font-weight:600; margin-bottom:6px; }
+  .mfield input, .mfield select { width:100%; padding:12px; border:1px solid var(--line2); background:var(--card); font-family:var(--sans); font-size:15px; outline:none; }
+  .mfield input:focus, .mfield select:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+  .dog-photo-preview { width:96px; height:96px; border-radius:50%; margin:0 auto 10px; background:var(--paper2); display:grid; place-items:center; font-size:34px; overflow:hidden; border:1px solid var(--line2); }
+  .dog-photo-preview img { width:100%; height:100%; object-fit:cover; }
+  .photo-upload-btn { display:inline-block; font-size:13px; font-weight:600; color:var(--accent); border:1px solid var(--accent); padding:6px 12px; cursor:pointer; }
+  .dog-name-link { cursor:pointer; transition:.15s; }
+  .dog-chip-home.dog-name-link:hover { border-color:var(--accent); }
+  .dog-chip-home.dog-name-link:hover b { color:var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="home">
+  <section class="home-hero {% if user %}logged-in-hero{% else %}guest-hero{% endif %}">
+    <div>
+      <div class="home-eyebrow">반려견과 함께 만드는 여행</div>
+      {% if user %}
+        <h1>{{ user.name }}님,<br><em>어디로 갈까요?</em></h1>
+        <p class="home-copy">등록한 반려견의 조건을 기준으로 갈 수 있는 곳을 확인하고, 마음에 드는 장소를 일정으로 바로 담아보세요.</p>
+        <div class="home-actions">
+          <button class="home-primary" onclick="location.href='/travel'">새 여행 만들기 →</button>
+          <button class="home-secondary" onclick="location.href='/mypage'">내 여행 보기</button>
+        </div>
+      {% else %}
+        <h1>우리 아이와<br><em>어디로 갈까요?</em></h1>
+        <p class="home-copy">지역과 반려견 정보를 정하면 동반 가능한 장소를 확인하고, 마음에 드는 곳을 일정으로 담아 여행을 만들어보세요.</p>
+        <div class="home-actions">
+          <button class="home-primary" onclick="openModal('login')">로그인하고 시작하기 →</button>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if user %}
+    <div class="personal-card">
+      <div class="personal-kicker">WITH</div>
+      <div class="personal-title">우리 아이와 함께</div>
+      <div class="personal-sub">여행에 함께 갈 반려견을 관리해요.</div>
+      {% set named_dogs = user.get('dogs', []) | selectattr('name') | list %}
+      <div class="dog-list">
+        {% for dog in named_dogs %}
+          <div class="dog-chip-home dog-name-link" onclick="showDogInfo({{ loop.index0 }})" title="{{ dog.name }} 정보 보기">
+            <div class="dog-dot">{% if dog.photo %}<img src="{{ dog.photo }}" alt="" onerror="this.parentNode.textContent='🐾'">{% else %}🐾{% endif %}</div>
+            <div><b>{{ dog.name }}</b></div>
+          </div>
+        {% endfor %}
+        <button class="btn-add-dog-home" onclick="openModal('add-dog')" title="반려견 추가">＋</button>
+      </div>
+      {% if home_ongoing %}
+        <div class="personal-trip">
+          <div class="pt-label">지금 진행 중인 여행</div>
+          <b>{{ home_ongoing.title }}</b>
+          <div class="pt-meta">{{ home_ongoing.start }} ~ {{ home_ongoing.end }} · {{ home_ongoing.stops|length }}곳</div>
+        </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="personal-card guest-card">
+      <div class="personal-kicker">START</div>
+      <div class="personal-title">지금 시작해 볼까요?</div>
+      <div class="personal-sub">로그인하면 우리 아이를 등록하고, 동반 가능한 여행지를 바로 찾아드려요.</div>
+      <ul class="guest-points">
+        <li>🐾 반려견 조건으로 동반 가능 여부를 자동 판정</li>
+        <li>📍 숙소·식당·카페·관광지·캠핑장을 한 번에 확인</li>
+        <li>🗓️ 마음에 드는 곳을 날짜별 일정으로 저장</li>
+      </ul>
+    </div>
+    {% endif %}
+  </section>
+</div>
+
+<section class="home home-section" id="sec-how">
+  <div class="eyebrow">HOW TO TRAVEL</div>
+  <h2>여행은 세 단계면 충분해요</h2>
+  <div class="flow">
+    <div class="flow-item"><div class="flow-no">01</div><h3>여행을 만들어요</h3><p>여행 이름과 지역, 날짜, 함께 갈 반려견을 정해요.</p></div>
+    <div class="flow-item"><div class="flow-no">02</div><h3>갈 곳을 확인해요</h3><p>숙소·식당·카페·관광지·캠핑장을 둘러보거나 장소를 직접 검색해요.</p></div>
+    <div class="flow-item"><div class="flow-no">03</div><h3>일정에 담아요</h3><p>마음에 드는 장소를 날짜별 일정에 넣고 여행 계획을 완성해요.</p></div>
+  </div>
+
+  <div class="logic-title eyebrow">HOW IT WORKS</div>
+  <h2>검색만 하는 곳이 아니라, 여행을 만드는 곳</h2>
+  <p>화면에서는 장소를 고르지만, 내부에서는 반려견 정보와 공공데이터를 비교해 일정까지 연결해요.</p>
+  <div class="logic-flow">
+    <div class="logic-step"><span class="logic-no">01</span><h3>조건 입력</h3><p>여행 지역·날짜와 함께 갈 반려견의 체중·크기 정보를 입력해요.</p></div>
+    <div class="logic-arrow">→</div>
+    <div class="logic-step"><span class="logic-no">02</span><h3>API 정보 비교</h3><p>관광·반려동물 동반 정보를 가져와 장소의 동반 조건과 반려견 조건을 비교해요.</p></div>
+    <div class="logic-arrow">→</div>
+    <div class="logic-step"><span class="logic-no">03</span><h3>일정으로 연결</h3><p>조건에 맞는 장소를 날짜별 일정에 담고, 저장된 여행을 마이페이지에서 이어서 관리해요.</p></div>
+  </div>
+</section>
+
+<section class="home home-section" id="sec-data">
+  <div class="eyebrow">DATA</div>
+  <h2>정보가 없으면 없는 그대로 알려드려요.</h2>
+  <p>공공데이터에 동반 조건이 없거나 부족한 경우에도 그 상태를 숨기지 않고 안내합니다.</p>
+  <div class="trust" style="margin-top:24px;">
+    <div><h2>공공데이터 API<br>3가지를 활용해요.</h2></div>
+    <div class="trust-points">
+      <div class="trust-point"><b>한국관광공사 국문 관광정보 API</b><span>관광지·숙소·식당·축제 등 기본 장소 정보와 위치를 가져와요.</span></div>
+      <div class="trust-point"><b>한국관광공사 반려동물 동반여행 API</b><span>반려동물 동반 장소와 동반 조건을 확인하고 반려견 기준으로 판정해요.</span></div>
+      <div class="trust-point"><b>한국관광공사 고캠핑 API</b><span>캠핑장 기본 정보와 반려동물 동반 여부를 확인해요. 두 API에 모두 있으면 반려동물 API 정보를 우선해요.</span></div>
+    </div>
+  </div>
+</section>
+
+{% if user %}
+<!-- 반려견 정보 보기 모달 -->
+<div class="modal-bg" id="modal-doginfo"><div class="auth" style="max-width:380px;">
+  <div style="text-align:center;">
+    <div class="dog-photo-preview" id="doginfo-photo" style="width:110px; height:110px; font-size:42px;">🐾</div>
+    <h2 id="doginfo-name" style="margin-top:14px;">반려견</h2>
+    <div class="sub" id="doginfo-desc" style="margin-bottom:18px;">정보</div>
+  </div>
+  <div id="doginfo-rows"></div>
+  <button class="btn-block" style="margin-top:20px;" onclick="closeModal('doginfo')">닫기</button>
+  <div class="switch">정보를 바꾸고 싶다면 <a onclick="location.href='/mypage'">마이페이지에서 수정</a></div>
+</div></div>
+
+<!-- 우리 아이 등록 모달 (마이페이지와 동일한 폼) -->
+<div class="modal-bg" id="modal-add-dog"><div class="auth">
+  <h2>우리 아이 등록</h2><div class="sub">반려견 정보를 추가합니다.</div>
+  <div style="text-align:center; margin-bottom:14px;">
+    <div class="dog-photo-preview" id="add-dog-photo-preview">🐾</div>
+    <label class="photo-upload-btn">사진 선택<input type="file" accept="image/*" style="display:none;" onchange="onAddDogPhoto(event)"></label>
+  </div>
+  <div class="mfield"><label>이름</label><input type="text" id="add-dog-name" placeholder="예: 보리"></div>
+  <div class="mfield"><label>견종 (선택)</label>
+    <select id="add-dog-breed">
+      <option value="">견종 선택 (선택)</option>
+      <option>말티즈</option><option>푸들</option><option>포메라니안</option><option>시츄</option><option>치와와</option><option>요크셔테리어</option><option>비숑프리제</option><option>스피츠</option><option>웰시코기</option><option>시바견</option><option>비글</option><option>코커스패니얼</option><option>보더콜리</option><option>진돗개</option><option>래브라도 리트리버</option><option>골든 리트리버</option><option>사모예드</option><option>허스키</option><option>믹스견</option><option>기타</option>
+    </select></div>
+  <div class="mfield"><label>무게 (kg)</label><input type="number" id="add-dog-weight" placeholder="예: 18" min="0" step="0.1"></div>
+  <div class="mfield"><label>크기</label>
+    <select id="add-dog-size">
+      <option value="">크기 선택</option>
+      <option value="small">소형견 (~10kg)</option>
+      <option value="medium">중형견 (10~25kg)</option>
+      <option value="large">대형견 (25kg~)</option>
+    </select></div>
+  <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:14px; cursor:pointer;">
+    <input type="checkbox" id="add-dog-guide" style="width:auto; margin:0;"> 맹인 안내견이에요</label>
+  <button class="btn-block" onclick="submitAddDog()">등록 완료</button>
+</div></div>
+{% endif %}
+{% endblock %}
+
+{% block script %}
+{% if user %}
+<script>
+const HOME_DOGS = {{ user.get('dogs', []) | selectattr('name') | list | tojson }};
+const SIZE_LABEL_KO = {small:'소형견', medium:'중형견', large:'대형견'};
+
+function escapeHtmlHome(v){
+  return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* 강아지 이름 클릭 → 정보 보기 */
+function showDogInfo(i){
+  const d = HOME_DOGS[i];
+  if(!d) return;
+  const photo = document.getElementById('doginfo-photo');
+  photo.innerHTML = d.photo
+    ? `<img src="${d.photo}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.textContent='🐾'">`
+    : '🐾';
+  document.getElementById('doginfo-name').textContent = d.name || '반려견';
+  document.getElementById('doginfo-desc').textContent = d.desc || '등록된 상세 정보가 없어요.';
+
+  const rows = [];
+  if(d.breed) rows.push(['견종', d.breed]);
+  if(d.weight) rows.push(['무게', String(d.weight).replace(/kg$/i,'') + 'kg']);
+  if(d.size && SIZE_LABEL_KO[d.size]) rows.push(['크기', SIZE_LABEL_KO[d.size]]);
+  rows.push(['맹인 안내견', d.guide ? '예' : '아니요']);
+  document.getElementById('doginfo-rows').innerHTML = rows.map(([k,v])=>
+    `<div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px;">
+       <span style="color:var(--ink2);">${escapeHtmlHome(k)}</span><span>${escapeHtmlHome(v)}</span></div>`).join('');
+  openModal('doginfo');
+}
+
+/* + 버튼 → 우리 아이 등록 (마이페이지와 동일 동작) */
+let addDogPhoto = '';
+function resizeImage(file, max, cb){
+  const reader=new FileReader();
+  reader.onload=ev=>{ const img=new Image();
+    img.onload=()=>{ let w=img.width,h=img.height;
+      if(w>h&&w>max){h=Math.round(h*max/w);w=max;} else if(h>=w&&h>max){w=Math.round(w*max/h);h=max;}
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h); cb(c.toDataURL('image/jpeg',0.82)); };
+    img.src=ev.target.result; };
+  reader.readAsDataURL(file);
+}
+function onAddDogPhoto(e){
+  const f=e.target.files[0]; if(!f) return;
+  resizeImage(f, 320, url=>{ addDogPhoto=url;
+    document.getElementById('add-dog-photo-preview').innerHTML=`<img src="${url}" alt="">`; });
+}
+function submitAddDog(){
+  const name=document.getElementById('add-dog-name').value.trim();
+  const breed=document.getElementById('add-dog-breed').value;
+  const weight=document.getElementById('add-dog-weight').value.trim();
+  const size=document.getElementById('add-dog-size').value;
+  const guide=document.getElementById('add-dog-guide').checked;
+  if(!name || !weight) return alert('이름과 무게를 입력해 주세요.');
+  if(!size) return alert('반려견 크기를 선택해 주세요.');
+  fetch('/api/add-dog', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name, breed, weight, size, guide, photo:addDogPhoto})})
+    .then(r=>r.json()).then(d=>{ if(d.success){location.reload();} else {alert(d.message);} });
+}
+</script>
+{% endif %}
+{% endblock %}

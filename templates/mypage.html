@@ -1,0 +1,499 @@
+{% extends 'base.html' %}
+
+{% block style %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mypage.css') }}">
+<style>
+  .dash-hd-in { max-width: 1500px; margin: 0 auto; padding: 0 40px; text-align: left; }
+
+  .btn-add-dog { width: 40px; height: 40px; border-radius: 50%; background: var(--paper2); border: none; font-size: 20px; cursor: pointer; display: inline-grid; place-items: center; transition: 0.2s; color: var(--accent); }
+  .btn-add-dog:hover { background: var(--line2); }
+
+  .dog-flex-wrap { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .dog-flex-wrap .mini { border-bottom: none; padding: 10px 14px; background: var(--paper); border: 1px solid var(--line); }
+  .dog-mini { cursor: pointer; transition: .15s; }
+  .dog-mini:hover { border-color: var(--accent); }
+  .dog-av { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: var(--paper2); display: grid; place-items: center; font-size: 16px; }
+  .dog-av img { width: 100%; height: 100%; object-fit: cover; }
+
+  .empty-state { padding: 40px 20px; text-align: center; color: var(--ink3); font-size: 14.5px; background: var(--paper); border: 1px dashed var(--line2); }
+
+  .kakaomap-container { width: 100%; height: 320px; background: #e4e9df; border: 1px solid var(--line2); position: relative; display: grid; place-items: center; color: var(--ink2); font-size: 14px; overflow: hidden; }
+  .map-fallback-list { padding: 20px; font-size: 13.5px; color: var(--ink2); line-height: 1.9; text-align: left; }
+  .map-pin { width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--accent); border: 3px solid #fff; box-shadow: 0 2px 7px rgba(0,0,0,.28); cursor: pointer; }
+  .map-pin::after { content:""; display:block; width:8px; height:8px; margin:8px; border-radius:50%; background:#fff; }
+  .map-info { min-width:220px; max-width:280px; padding:12px 14px; line-height:1.55; color:var(--ink); }
+  .map-info b { font-size:14px; }
+  .map-info .mi-sub { font-size:12px; color:var(--ink2); margin-top:3px; }
+  .map-info .mi-trip { margin-top:8px; padding-top:8px; border-top:1px solid var(--line); font-size:12.5px; }
+
+  .mfield { margin-bottom: 14px; }
+  .mfield label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .mfield input, .mfield select { width: 100%; padding: 12px; border: 1px solid var(--line2); background: var(--card); }
+
+  .ongoing-actions { margin-top: 16px; display: flex; gap: 8px; }
+  .ongoing-actions button { padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-done { background: #7fd39b; color: #123; }
+  .btn-edit-o { background: rgba(255,255,255,.16); color: var(--paper); }
+  .btn-del { background: rgba(255,255,255,.15); color: var(--paper); }
+  .ongoing .stops { margin-top: 14px; font-size: 13px; opacity: .92; line-height: 1.7; }
+
+  .trip-card { position: relative; }
+  .trip-card .del { position: absolute; top: 12px; right: 14px; font-size: 12px; color: var(--red); cursor: pointer; }
+
+  .badge-status { font-size: 11.5px; font-weight: 700; padding: 3px 9px; display: inline-block; }
+  .badge-status.planned { background: var(--gray-bg); color: var(--gray-tx); }
+  .badge-status.ongoing { background: var(--green-bg); color: var(--green-tx); }
+  .trip-state-note { font-size:12px; color:var(--ink3); }
+  .badge-status.done { background: var(--amber-bg); color: var(--amber-tx); }
+  .mini-edit { font-size: 12px; color: var(--accent); font-weight: 600; cursor: pointer; }
+  .mini-edit:hover { text-decoration: underline; }
+
+  .rec-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); gap: 12px; }
+  .rec-row:last-child { border-bottom: none; }
+
+  .dog-photo-preview { width: 96px; height: 96px; border-radius: 50%; margin: 0 auto 12px; background: var(--paper2); display: grid; place-items: center; font-size: 34px; overflow: hidden; border: 1px solid var(--line2); }
+  .dog-photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-upload-btn { display: inline-block; font-size: 13px; font-weight: 600; color: var(--accent); border: 1px solid var(--accent); padding: 6px 12px; cursor: pointer; }
+  .photo-clear { font-size: 12px; color: var(--red); cursor: pointer; margin-left: 10px; }
+
+  /* 4차 보강: 자동저장 · 장소 마커 지도 · 이어서 계획하기 */
+  .panel h3 { font-size: 17px; }
+  .ongoing h3 { font-size: 18px; }
+  .trip-list .trip-card b { font-size: 15.5px; }
+  .trip-list .trip-card > div { font-size: 13.8px; }
+  .rec-row > div > div:first-child { font-size: 15px; }
+  .rec-row > div > div:last-child { font-size: 12.5px; }
+  .hidden-log { display: none; }
+  .stop-detail { border-top: 1px dashed var(--line2); padding-top: 8px; }
+  .map-pin { display: flex; gap: 2px; cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-hd" style="padding: 44px 0;">
+  <div class="dash-hd-in">
+    <div style="font-size: 13px; color: var(--accent); font-weight: 600; letter-spacing: .1em; margin-bottom: 10px;">MY PAGE</div>
+    <h1 style="font-family: var(--serif); font-size: 34px; font-weight: 700;">안녕하세요, {{ user.name }}님</h1>
+    <div style="font-size: 15px; color: var(--ink2); margin-top: 6px;">내 여행 계획과 반려견 정보를 관리하는 공간이에요.</div>
+  </div>
+</div>
+
+<div class="dash">
+  <!-- 진행 중인 여행: 확정된 여행 중 오늘이 여행 기간에 포함된 경우만 표시 -->
+  {% if ongoing %}
+  <div class="ongoing">
+    <h3>🚗 진행 중인 여행 · {{ ongoing.title }}</h3>
+    <div class="mt">{{ ongoing.start }} ~ {{ ongoing.end }} · {{ ongoing.stops|length }}곳
+      {% if ongoing.dogs %}· {{ ongoing.dogs|join(', ') }}{% endif %}</div>
+    {% if ongoing.stops %}
+    <div class="stops">
+      {% for s in ongoing.stops %}📍 {{ s.name }}<br>{% endfor %}
+    </div>
+    {% endif %}
+    <div class="ongoing-actions">
+      <button class="btn-done" onclick="completeTrip('{{ ongoing._id }}')">여행 완료로 옮기기</button>
+      <button class="btn-edit-o" onclick="editTrip('{{ ongoing._id }}')">여행 계획 수정</button>
+      <button class="btn-del" onclick="deleteTrip('{{ ongoing._id }}')">삭제</button>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="dash-row">
+    <!-- 왼쪽: 지도 + 계획중 + 다녀온 -->
+    <div class="panel">
+      <h3 style="margin-bottom: 12px;">여행 지도 <span style="font-size:12px; color:var(--ink3); font-weight:400;">· 다녀온 여행지만 표시</span></h3>
+      <div class="kakaomap-container" id="kakao-map-area">
+        <div id="map" style="width:100%;height:100%;"></div>
+      </div>
+
+      <h3 style="margin: 24px 0 12px;">계획 중인 여행</h3>
+      <div class="trip-list">
+        {% if planned %}
+          {% for t in planned %}
+          <div class="trip-card">
+            <span class="del" onclick="deleteTrip('{{ t._id }}')">삭제</span>
+            <div><b>{{ t.title }}</b></div>
+            <div style="font-size: 13px; color: var(--ink3);">{{ t.start }} ~ {{ t.end }} · {{ t.stops|length }}곳</div>
+            <div style="margin-top: 8px; display: flex; gap: 10px; align-items: center;">
+              <span class="badge-status planned">계획중</span>
+              <span class="trip-state-note">{% if t.confirmed %}여행 전{% else %}확정 전{% endif %}</span>
+              <span class="mini-edit" onclick="editTrip('{{ t._id }}')">계속 계획하기 →</span>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state" style="grid-column: 1 / -1;">아직 계획 중인 여행이 없어요.<br>여행을 시작하면 자동으로 저장돼요.</div>
+        {% endif %}
+      </div>
+
+      <h3 style="margin: 24px 0 12px;">다녀온 여행</h3>
+      <div class="trip-list">
+        {% if records %}
+          {% for t in records %}
+          <div class="trip-card">
+            <span class="del" onclick="deleteTrip('{{ t._id }}')">삭제</span>
+            <div><b>{{ t.title }}</b></div>
+            <div style="font-size: 13px; color: var(--ink3);">{{ t.start }} ~ {{ t.end }} · {{ t.stops|length }}곳</div>
+            <div style="margin-top: 8px; display: flex; gap: 10px; align-items: center;">
+              <span class="badge-status done">다녀옴</span>
+              {% if t.stops %}<span class="mini-edit" onclick="toggleStops('rec-{{ loop.index }}')">상세 보기</span>{% endif %}
+            </div>
+            {% if t.stops %}
+            <div class="stop-detail" id="rec-{{ loop.index }}" style="display:none; margin-top:10px; font-size:13.5px; color:var(--ink2); line-height:1.9;">
+              {% for s in t.stops %}📍 {{ s.name }}<br>{% endfor %}
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state" style="grid-column: 1 / -1;">아직 다녀온 여행이 없어요.<br>여행 기간이 끝나면 여기로 자동 이동돼요.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- 오른쪽: 우리 아이들 + 이용 기록 + 계정 -->
+    <div style="display:flex; flex-direction:column; gap:24px;">
+      <div class="panel">
+        <h3 style="margin-bottom: 14px;">우리 아이들</h3>
+        <div class="dog-flex-wrap">
+          {% for dog in dogs %}
+            {% if dog.name %}
+            <div class="mini dog-mini" onclick="editDog({{ dog._i }})" title="이름을 눌러 반려견 정보 보기 · 수정">
+              <div class="dog-av">{% if dog.photo %}<img src="{{ dog.photo }}" alt="">{% else %}🐾{% endif %}</div>
+              <div>
+                <div><b class="dog-name-link">{{ dog.name }}</b></div>
+                <div style="font-size: 13px; color: var(--ink3);">{{ dog.desc }}</div>
+              </div>
+            </div>
+            {% endif %}
+          {% endfor %}
+          <button class="btn-add-dog" onclick="openModal('add-dog')" title="반려견 추가하기">＋</button>
+        </div>
+        {% if not dogs %}
+        <div style="font-size:13px; color:var(--ink3); margin-top:10px;">＋ 버튼을 눌러 반려견을 등록해 주세요.</div>
+        {% else %}
+        <div style="font-size:12px; color:var(--ink3); margin-top:10px;">카드를 누르면 정보를 수정하거나 사진을 넣을 수 있어요.</div>
+        {% endif %}
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-bottom: 6px;">이용 기록</h3>
+        <div style="font-size:12.5px; color:var(--ink3); margin-bottom:12px;">담았던 장소들을 최근 순으로 보여줘요.</div>
+        {% if place_log %}
+          <div id="place-log">
+            {% for p in place_log %}
+            <div class="rec-row {% if loop.index > 4 %}hidden-log{% endif %}">
+              <div>
+                <div style="font-size:14.5px; font-weight:600;">📍 {{ p.name }}</div>
+                <div style="font-size:12.5px; color:var(--ink3);">{{ p.trip }} · {{ p.date }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% if place_log|length > 4 %}
+          <div style="text-align:center; margin-top:12px;">
+            <span class="mini-edit" id="log-toggle" onclick="toggleLog()">더보기 ({{ place_log|length - 4 }})</span>
+          </div>
+          {% endif %}
+        {% else %}
+          <div style="font-size:13px; color:var(--ink3);">아직 담은 장소가 없어요.</div>
+        {% endif %}
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-bottom: 14px;">계정 관리</h3>
+        <div class="settings-row"><span>아이디</span><span style="color: var(--ink3);">{{ user.user_id }}</span></div>
+        <div class="settings-row" onclick="openModal('change-pw')"><span>비밀번호 변경</span><span>&rsaquo;</span></div>
+        <div class="settings-row" onclick="logout()"><span style="color: var(--ink2);">로그아웃</span><span>&rsaquo;</span></div>
+        <div class="settings-row" onclick="openModal('delete-account')"><span style="color: var(--red); font-weight: 600;">계정 삭제</span><span>&rsaquo;</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 모달 -->
+<div class="modal-bg" id="modal-add-dog"><div class="auth">
+  <h2>우리 아이 등록</h2><div class="sub">반려견 정보를 추가합니다.</div>
+  <div style="text-align:center; margin-bottom:14px;">
+    <div class="dog-photo-preview" id="add-dog-photo-preview">🐾</div>
+    <label class="photo-upload-btn">사진 선택<input type="file" accept="image/*" style="display:none;" onchange="onAddDogPhoto(event)"></label>
+  </div>
+  <div class="mfield"><label>이름</label><input type="text" id="add-dog-name" placeholder="예: 보리"></div>
+  <div class="mfield"><label>견종 (선택)</label>
+    <select id="add-dog-breed">
+      <option value="">견종 선택 (선택)</option>
+      <option>말티즈</option><option>푸들</option><option>포메라니안</option><option>시츄</option><option>치와와</option><option>요크셔테리어</option><option>비숑프리제</option><option>스피츠</option><option>웰시코기</option><option>시바견</option><option>비글</option><option>코커스패니얼</option><option>보더콜리</option><option>진돗개</option><option>래브라도 리트리버</option><option>골든 리트리버</option><option>사모예드</option><option>허스키</option><option>믹스견</option><option>기타</option>
+    </select></div>
+  <div class="mfield"><label>무게 (kg)</label><input type="number" id="add-dog-weight" placeholder="예: 18" min="0" step="0.1"></div>
+  <div class="mfield"><label>크기</label>
+    <select id="add-dog-size">
+      <option value="">크기 선택</option>
+      <option value="small">소형견 (~10kg)</option>
+      <option value="medium">중형견 (10~25kg)</option>
+      <option value="large">대형견 (25kg~)</option>
+    </select></div>
+  <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:14px; cursor:pointer;">
+    <input type="checkbox" id="add-dog-guide" style="width:auto; margin:0;"> 맹인 안내견이에요</label>
+  <button class="btn-block" onclick="submitAddDog()">등록 완료</button>
+</div></div>
+
+<div class="modal-bg" id="modal-edit-dog"><div class="auth">
+  <h2>반려견 정보 수정</h2><div class="sub">사진과 정보를 바꿀 수 있어요.</div>
+  <input type="hidden" id="edit-dog-index">
+  <div style="text-align:center; margin-bottom:16px;">
+    <div class="dog-photo-preview" id="edit-dog-photo-preview">🐾</div>
+    <label class="photo-upload-btn">사진 선택<input type="file" id="edit-dog-photo-file" accept="image/*" style="display:none;" onchange="onDogPhotoPick(event)"></label>
+    <span class="photo-clear" onclick="clearDogPhoto()">사진 제거</span>
+  </div>
+  <div class="mfield"><label>이름</label><input type="text" id="edit-dog-name"></div>
+  <div class="mfield"><label>견종 (선택)</label>
+    <select id="edit-dog-breed">
+      <option value="">견종 선택 (선택)</option>
+      <option>말티즈</option><option>푸들</option><option>포메라니안</option><option>시츄</option><option>치와와</option><option>요크셔테리어</option><option>비숑프리제</option><option>스피츠</option><option>웰시코기</option><option>시바견</option><option>비글</option><option>코커스패니얼</option><option>보더콜리</option><option>진돗개</option><option>래브라도 리트리버</option><option>골든 리트리버</option><option>사모예드</option><option>허스키</option><option>믹스견</option><option>기타</option>
+    </select></div>
+  <div class="mfield"><label>무게 (kg)</label><input type="number" id="edit-dog-weight" min="0" step="0.1"></div>
+  <div class="mfield"><label>크기</label>
+    <select id="edit-dog-size">
+      <option value="">크기 선택</option>
+      <option value="small">소형견 (~10kg)</option>
+      <option value="medium">중형견 (10~25kg)</option>
+      <option value="large">대형견 (25kg~)</option>
+    </select></div>
+  <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:14px; cursor:pointer;">
+    <input type="checkbox" id="edit-dog-guide" style="width:auto; margin:0;"> 맹인 안내견이에요</label>
+  <div style="display:flex; gap:8px;">
+    <button class="btn-block" style="flex:1; width:auto;" onclick="saveDogEdit()">저장</button>
+    <button class="btn-block" style="flex:0 0 auto; width:auto; padding:15px 24px; background:var(--red);" onclick="deleteDogConfirm()">삭제</button>
+  </div>
+</div></div>
+
+<div class="modal-bg" id="modal-edit-trip"><div class="auth">
+  <h2>여행 수정</h2><div class="sub">이름·날짜와 담긴 장소를 바꿀 수 있어요.</div>
+  <input type="hidden" id="edit-trip-id">
+  <div class="mfield"><label>여행 이름</label><input type="text" id="edit-trip-title"></div>
+  <div class="mfield"><label>시작일</label><input type="date" id="edit-trip-start"></div>
+  <div class="mfield"><label>종료일</label><input type="date" id="edit-trip-end"></div>
+  <div class="mfield"><label>담긴 장소</label><div id="edit-trip-stops"></div></div>
+  <button class="btn-block" onclick="saveTripEdit()">저장</button>
+</div></div>
+
+<div class="modal-bg" id="modal-change-pw"><div class="auth">
+  <h2>비밀번호 변경</h2><div class="sub">본인 확인을 위해 기존 비밀번호를 먼저 입력해 주세요.</div>
+  <div class="mfield"><label>기존 비밀번호</label><input type="password" id="cur-pw-input" placeholder="현재 사용 중인 비밀번호"></div>
+  <div class="mfield"><label>새 비밀번호</label><input type="password" id="new-pw-input" placeholder="새로 사용할 비밀번호"></div>
+  <button class="btn-block" onclick="submitChangePw()">변경 완료</button>
+</div></div>
+
+<div class="modal-bg" id="modal-delete-account"><div class="auth">
+  <h2 style="color:var(--red);">계정 삭제 확인</h2><div class="sub">탈퇴를 위해 비밀번호를 재입력해 주세요.</div>
+  <div class="mfield"><label>현재 비밀번호</label><input type="password" id="delete-confirm-pw"></div>
+  <button class="btn-block" style="background:var(--red);" onclick="submitDeleteAccount()">본인 확인 및 삭제</button>
+</div></div>
+
+<script>
+const KAKAO_KEY = "{{ KAKAO_JS_KEY }}";
+const MAP_STOPS = {{ map_stops|tojson }};
+const DOGS = {{ dogs|tojson }};
+const TRIPS = {{ all_trips|tojson }};
+
+/* 지도: 완료된 여행의 장소만 마커로 표시. 반려견 사진은 사용하지 않는다. */
+(function(){
+  const holder = document.getElementById('kakao-map-area');
+  const stops = (MAP_STOPS || []).filter(s => s.lat && s.lng);
+  if(!KAKAO_KEY){
+    holder.innerHTML = stops.length
+      ? `<div class="map-fallback-list">${stops.map(s=>'📍 '+s.name).join('<br>')}<br><br><span style="font-size:12px;color:var(--ink3);">카카오 JavaScript 키를 넣으면 지도로 표시됩니다.</span></div>`
+      : `<div style="text-align:center;">여행을 다녀오면 그 여행지가 이 지도에 표시돼요.</div>`;
+    return;
+  }
+  const script=document.createElement('script');
+  script.src=`//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_KEY}&autoload=false`;
+  script.onload=()=>kakao.maps.load(()=>{
+    const map=new kakao.maps.Map(document.getElementById('map'), {center:new kakao.maps.LatLng(36.2,127.9), level:13});
+    if(!stops.length) return;
+    const bounds=new kakao.maps.LatLngBounds();
+    let openId=null;
+    stops.forEach((st,idx)=>{
+      const pos=new kakao.maps.LatLng(st.lat, st.lng);
+      const el=document.createElement('div');
+      el.className='map-pin';
+      el.title=st.name||'방문 장소';
+      const dogs=(st.dogs||[]).filter(Boolean).join(', ');
+      const day=st.day ? `${st.day}일차` : '';
+      const date=(st.start||st.end) ? `${st.start||''}${st.end?' ~ '+st.end:''}` : '';
+      el.addEventListener('click',()=>{
+        const content=`<div class="map-info">
+          <b>📍 ${escapeMap(st.name||'방문 장소')}</b>
+          <div class="mi-sub">${escapeMap(st.addr||'')}</div>
+          <div class="mi-trip">
+            <b>${escapeMap(st.trip||'여행')}</b>
+            <div>${escapeMap(date)}${day?' · '+escapeMap(day):''}</div>
+            ${dogs?`<div>🐶 ${escapeMap(dogs)}</div>`:''}
+          </div>
+        </div>`;
+        if(openId===idx){ if(window.__mypageInfo) window.__mypageInfo.close(); openId=null; return; }
+        if(window.__mypageInfo) window.__mypageInfo.close();
+        const info=new kakao.maps.InfoWindow({content});
+        info.setPosition(pos); info.open(map);
+        window.__mypageInfo=info; openId=idx;
+      });
+      new kakao.maps.CustomOverlay({position:pos, yAnchor:1, content:el, map});
+      bounds.extend(pos);
+    });
+    map.setBounds(bounds);
+    if(map.getLevel() < 13) map.setLevel(13);
+  });
+  document.head.appendChild(script);
+})();
+function escapeMap(v){ return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---- 반려견 등록 ---- */
+let addDogPhoto = '';
+function onAddDogPhoto(e){
+  const f=e.target.files[0]; if(!f) return;
+  resizeImage(f, 320, url=>{ addDogPhoto=url;
+    document.getElementById('add-dog-photo-preview').innerHTML=`<img src="${url}" alt="">`; });
+}
+function submitAddDog() {
+  const name = document.getElementById('add-dog-name').value.trim();
+  const breed = document.getElementById('add-dog-breed').value;
+  const weight = document.getElementById('add-dog-weight').value.trim();
+  const size = document.getElementById('add-dog-size').value;
+  const guide = document.getElementById('add-dog-guide').checked;
+  if(!name || !weight) return alert('이름과 무게를 입력해 주세요.');
+  if(!size) return alert('반려견 크기를 선택해 주세요.');
+  fetch('/api/add-dog', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, breed, weight, size, guide, photo:addDogPhoto})})
+    .then(r=>r.json()).then(d=>{ if(d.success){location.reload();} else {alert(d.message);} });
+}
+
+/* ---- 반려견 수정 + 사진 ---- */
+let currentDogPhoto = '';
+function resizeImage(file, max, cb){
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width, h=img.height;
+      if(w>h && w>max){ h=Math.round(h*max/w); w=max; }
+      else if(h>=w && h>max){ w=Math.round(w*max/h); h=max; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      cb(c.toDataURL('image/jpeg',0.82));
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function onDogPhotoPick(e){
+  const f=e.target.files[0]; if(!f) return;
+  resizeImage(f, 320, url=>{
+    currentDogPhoto=url;
+    document.getElementById('edit-dog-photo-preview').innerHTML=`<img src="${url}" alt="">`;
+  });
+}
+function clearDogPhoto(){
+  currentDogPhoto='';
+  document.getElementById('edit-dog-photo-preview').innerHTML='🐾';
+}
+function editDog(i){
+  const d=DOGS.find(x=>x._i===i); if(!d) return;
+  document.getElementById('edit-dog-index').value=i;
+  document.getElementById('edit-dog-name').value=d.name||'';
+  document.getElementById('edit-dog-breed').value=d.breed||'';
+  document.getElementById('edit-dog-weight').value=(d.weight||'').toString().replace('kg','');
+  document.getElementById('edit-dog-size').value=d.size||'';
+  document.getElementById('edit-dog-guide').checked=!!d.guide;
+  currentDogPhoto=d.photo||'';
+  document.getElementById('edit-dog-photo-preview').innerHTML = d.photo?`<img src="${d.photo}" alt="">`:'🐾';
+  openModal('edit-dog');
+}
+function saveDogEdit(){
+  const index=parseInt(document.getElementById('edit-dog-index').value,10);
+  const name=document.getElementById('edit-dog-name').value.trim();
+  const breed=document.getElementById('edit-dog-breed').value.trim();
+  const weight=document.getElementById('edit-dog-weight').value.trim();
+  const size=document.getElementById('edit-dog-size').value;
+  const guide=document.getElementById('edit-dog-guide').checked;
+  if(!name) return alert('이름을 입력해 주세요.');
+  fetch('/api/update-dog',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({index,name,breed,weight,size,guide,photo:currentDogPhoto})})
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert(d.message); });
+}
+function deleteDogConfirm(){
+  const index=parseInt(document.getElementById('edit-dog-index').value,10);
+  if(!confirm('이 반려견 정보를 삭제할까요?')) return;
+  fetch('/api/delete-dog',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index})})
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert(d.message); });
+}
+
+/* ---- 여행 수정 (장소 편집 포함) ---- */
+let editTripStops = [];
+function renderEditTripStops(){
+  const box=document.getElementById('edit-trip-stops');
+  if(!editTripStops.length){ box.innerHTML='<div style="font-size:13px; color:var(--ink3);">담긴 장소가 없어요.</div>'; return; }
+  box.innerHTML=editTripStops.map((s,i)=>`<div class="rec-row"><span style="font-size:13.5px;">📍 ${s.name}</span><span class="mini-edit" style="color:var(--red);" onclick="rmEditTripStop(${i})">삭제</span></div>`).join('');
+}
+function rmEditTripStop(i){ editTripStops.splice(i,1); renderEditTripStops(); }
+function editTrip(id){
+  const t=TRIPS.find(x=>x._id===id);
+  if(!t) return;
+  location.href='/travel?trip_id='+encodeURIComponent(id);
+}
+function saveTripEdit(){
+  const id=document.getElementById('edit-trip-id').value;
+  const title=document.getElementById('edit-trip-title').value.trim();
+  const start=document.getElementById('edit-trip-start').value;
+  const end=document.getElementById('edit-trip-end').value;
+  if(!title) return alert('여행 이름을 입력해 주세요.');
+  fetch('/api/trip/update',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id,title,start,end,stops:editTripStops})})
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert(d.message); });
+}
+
+/* ---- 다녀온 여행 상세 / 이용기록 더보기 ---- */
+function toggleStops(id){
+  const el=document.getElementById(id); if(!el) return;
+  el.style.display = (el.style.display==='none' || !el.style.display) ? 'block' : 'none';
+}
+let logOpen=false;
+function toggleLog(){
+  logOpen=!logOpen;
+  document.querySelectorAll('#place-log .hidden-log').forEach(el=>el.style.display=logOpen?'flex':'none');
+  const btn=document.getElementById('log-toggle');
+  if(btn) btn.textContent = logOpen ? '축소' : '더보기';
+}
+
+/* ---- 계정 ---- */
+function submitChangePw() {
+  const current_password = document.getElementById('cur-pw-input').value;
+  const new_password = document.getElementById('new-pw-input').value;
+  if(!current_password) return alert('기존 비밀번호를 입력해 주세요.');
+  if(!new_password) return alert('새 비밀번호를 입력해 주세요.');
+  fetch('/api/change-pw', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({current_password, new_password})})
+    .then(r=>r.json()).then(d=>{
+      alert(d.message);
+      if(d.success){
+        document.getElementById('cur-pw-input').value='';
+        document.getElementById('new-pw-input').value='';
+        closeModal('change-pw');
+      }
+    });
+}
+function submitDeleteAccount() {
+  const password = document.getElementById('delete-confirm-pw').value;
+  if(!password) return alert('비밀번호를 입력해 주세요.');
+  if(!confirm('정말로 계정을 삭제하시겠습니까? 데이터는 즉시 파기됩니다.')) return;
+  fetch('/api/delete-account', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password})})
+    .then(r=>r.json()).then(d=>{ if(d.success){alert('계정이 삭제되었습니다.'); location.href='/';} else {alert(d.message);} });
+}
+function completeTrip(id){
+  fetch('/api/trip/complete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})})
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert(d.message); });
+}
+function deleteTrip(id){
+  if(!confirm('이 여행을 삭제할까요?')) return;
+  fetch('/api/trip/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})})
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert(d.message); });
+}
+</script>
+{% endblock %}
