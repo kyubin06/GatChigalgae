@@ -173,8 +173,13 @@ TRANSPORT_RADIUS = {
 }
 
 # MongoDB 연결
-client = MongoClient("mongodb://localhost:27017/", serverSelectionTimeoutMS=2000)
-db = client['withgaegae']
+MONGO_URI = os.environ.get("MONGO_URI")
+
+if not MONGO_URI:
+    raise RuntimeError("MONGO_URI 환경변수가 설정되지 않았습니다.")
+
+client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+db = client["withgaegae"]
 
 
 def get_current_user():
