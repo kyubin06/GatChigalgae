@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>같이갈개 - 반려견 동반여행 판정 서비스</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<style>
+  /* 회원가입 폼 내부 버튼들을 위한 정렬 스타일 추가 */
+  .input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .input-group input {
+    margin-bottom: 0 !important;
+    flex: 1;
+  }
+  .btn-inline {
+    padding: 0 12px;
+    background: var(--accent);
+    color: var(--paper);
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+</style>
+{% block style %}{% endblock %}
+</head>
+<body>
+
+<nav class="nav"><div class="nav-in">
+  <div class="logo" onclick="location.href='/'">같이갈개<span class="dot">.</span></div>
+  <div class="nav-menu">
+    <a href="/#sec-how">이용 방법</a>
+    <a href="/#sec-data">데이터</a>
+    {% if user %}
+      <a href="/mypage">마이페이지</a>
+      <button class="nav-cta" onclick="location.href='/travel'">여행 시작</button>
+    {% else %}
+      <button class="nav-ghost" onclick="openModal('login')">로그인</button>
+      <button class="nav-cta" onclick="openModal('signup')">회원가입</button>
+    {% endif %}
+  </div>
+</div></nav>
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-foot"><div class="foot-in">
+  <div><div class="foot-logo">같이갈개<span class="dot">.</span></div><div class="foot-tag">반려견 동반 가능 여부를 확인하고 여행 일정을 완성하는 서비스입니다.</div></div>
+  <div class="foot-data">
+    출처: &copy;한국관광공사 &middot; &copy;한국관광콘텐츠랩<br>
+    반려동물 동반여행 &middot; 국문 관광정보 &middot; 고캠핑 정보 API 활용<br>
+    &copy; 2026 같이갈개 &middot; 한국관광공사가 직접 운영하는 서비스가 아닙니다.
+  </div>
+</div></footer>
+
+<!-- 로그인 모달 -->
+<div class="modal-bg" id="modal-login"><form class="auth" onsubmit="event.preventDefault(); submitLogin();">
+  <h2>로그인</h2><div class="sub">같이갈개에 오신 것을 환영해요.</div>
+  <input type="text" id="login-id" placeholder="아이디" autocomplete="username"><input type="password" id="login-pw" placeholder="비밀번호" autocomplete="current-password">
+  <button type="submit" class="btn-block">로그인</button>
+  <div class="switch">계정이 없으신가요? <a onclick="closeModal('login');openModal('signup')">회원가입</a></div>
+</form></div>
+
+<!-- 회원가입 모달 (수정된 버전) -->
+<div class="modal-bg" id="modal-signup"><form class="auth" style="max-width: 440px;" onsubmit="event.preventDefault(); submitSignup();">
+  <h2>회원가입</h2><div class="sub">우리 아이 데이터베이스를 만들어볼까요?</div>
+  
+  <input type="text" id="signup-name" placeholder="이름 입력" style="margin-bottom: 12px; width: 100%; padding: 14px 16px; border: 1px solid var(--line2); background: var(--card);">
+  
+  <div class="input-group">
+    <input type="text" id="signup-id" placeholder="아이디" autocomplete="username" oninput="isIdChecked=false">
+    <button type="button" class="btn-inline" onclick="checkIdDup()">중복 확인</button>
+  </div>
+  
+  <input type="password" id="signup-pw" placeholder="비밀번호" autocomplete="new-password" style="margin-bottom: 20px; width: 100%; padding: 14px 16px; border: 1px solid var(--line2); background: var(--card);">
+  
+  <button type="submit" class="btn-block">가입하고 시작하기</button>
+  <div class="switch">이미 계정이 있으신가요? <a onclick="closeModal('signup');openModal('login')">로그인</a></div>
+</form></div>
+
+<script>
+let isIdChecked = false;
+
+function openModal(n){document.getElementById('modal-'+n).classList.add('on')}
+function closeModal(n){document.getElementById('modal-'+n).classList.remove('on')}
+document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('on')}));
+
+function checkIdDup() {
+  const user_id=document.getElementById('signup-id').value.trim();
+  if(!user_id) return alert('아이디를 입력해주세요.');
+  fetch('/api/check-id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id})})
+    .then(r=>r.json()).then(data=>{alert(data.message); if(data.success) isIdChecked=true;});
+}
+
+function submitSignup(){
+  const user_id=document.getElementById('signup-id').value.trim();
+  const password=document.getElementById('signup-pw').value;
+  const name=document.getElementById('signup-name').value.trim();
+
+  if(!name||!user_id||!password) return alert('이름, 아이디, 비밀번호를 모두 입력해주세요.');
+  if(!isIdChecked) return alert('아이디 중복 확인을 먼저 완료해주세요.');
+
+  fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id,password,name})})
+    .then(r=>r.json().then(data=>({ok:r.ok,data}))).then(({ok,data})=>{
+      if(data.success) location.href='/'; else alert(data.message||'회원가입에 실패했습니다.');
+    }).catch(()=>alert('회원가입 요청에 실패했습니다.'));
+}
+
+function submitLogin() {
+  const user_id = document.getElementById('login-id').value;
+  const password = document.getElementById('login-pw').value;
+
+  fetch('/api/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({user_id, password})
+  }).then(res => res.json()).then(data => {
+    if(data.success) { location.reload(); } else { alert(data.message); }
+  });
+}
+
+function logout() {
+  fetch('/api/logout', { method: 'POST' }).then(() => { location.href = '/'; });
+}
+</script>
+{% block script %}{% endblock %}
+</body>
+</html>

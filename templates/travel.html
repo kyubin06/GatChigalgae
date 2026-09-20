@@ -1,0 +1,1308 @@
+{% extends 'base.html' %}
+
+{% block style %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/travel.css') }}">
+<style>
+/* ===== 여행 플래너 전용 ===== */
+.planner { max-width: 1500px; margin: 0 auto; padding: 32px 40px 80px; }
+
+/* 진행 스텝 바 */
+.steps-bar { display:flex; gap:8px; margin-bottom:28px; flex-wrap:wrap; }
+.steps-bar .sb {
+  font-size:12.5px; font-weight:600; color:var(--ink3);
+  padding:7px 14px; background:var(--card); border:1px solid var(--line2);
+  border-radius:2px; letter-spacing:.02em;
+}
+.steps-bar .sb.on { background:var(--accent); color:var(--paper); border-color:var(--accent); }
+.steps-bar .sb.done { color:var(--accent); border-color:var(--line2); }
+
+/* 스테이지 전환 */
+.stage { display:none; }
+.stage.active { display:block; animation:fade .3s ease; }
+@keyframes fade { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
+
+.stage-q { font-family:var(--serif); font-size:29px; font-weight:700; margin-bottom:6px; }
+.stage-sub { font-size:15px; color:var(--ink2); margin-bottom:26px; }
+
+/* 여행 이름 입력 */
+.trip-name-box {
+  width:min(100%, 720px);
+  margin:18px 0 28px;
+  padding:22px 24px 20px;
+  background:var(--card);
+  border:1px solid var(--line2);
+  border-left:4px solid var(--accent);
+}
+.trip-name-label {
+  display:flex; align-items:center; gap:8px;
+  font-size:13px; font-weight:700; color:var(--accent);
+  margin-bottom:10px;
+}
+.trip-name-label span { color:var(--ink3); font-weight:500; }
+.trip-name-input {
+  display:block; width:100%; box-sizing:border-box;
+  padding:11px 0 9px;
+  border:none; border-bottom:1px solid var(--line2);
+  border-radius:0; background:transparent; color:var(--ink);
+  font-family:var(--serif); font-size:24px; font-weight:600;
+  line-height:1.35; outline:none;
+  transition:border-color .15s;
+}
+.trip-name-input::placeholder { color:#aaa294; font-weight:500; }
+.trip-name-input:hover { border-bottom-color:var(--ink3); }
+.trip-name-input:focus { border-bottom-color:var(--accent); }
+.draft-save-status {
+  width:min(100%, 520px);
+  margin-top:7px;
+  font-size:12px;
+  color:var(--ink3);
+}
+
+/* 타입 선택 카드 */
+.type-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+.type-card {
+  background:var(--card); border:1px solid var(--line2); padding:26px 24px;
+  cursor:pointer; transition:.16s; position:relative;
+}
+.type-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+.type-card.on { border-color:var(--accent); background:#f0f4ef; box-shadow:inset 0 0 0 1px var(--accent); }
+.type-card .ico { font-size:26px; }
+.type-card h3 { font-family:var(--serif); font-size:19px; margin:10px 0 6px; }
+.type-card p { font-size:13.5px; color:var(--ink3); line-height:1.55; }
+
+/* 캘린더 */
+.cal-wrap { display:grid; grid-template-columns:1fr 1fr; gap:26px; margin-bottom:20px; }
+.cal { background:var(--card); border:1px solid var(--line2); padding:18px 18px 20px; }
+.cal-hd { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.cal-hd b { font-family:var(--serif); font-size:16px; }
+.cal-nav { background:none; border:1px solid var(--line2); width:30px; height:30px; cursor:pointer; font-size:15px; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal-dow { text-align:center; font-size:11.5px; color:var(--ink3); padding:4px 0; font-weight:600; }
+.cal-cell {
+  text-align:center; padding:9px 0; font-size:13.5px; cursor:pointer;
+  user-select:none; border-radius:2px; position:relative;
+}
+.cal-cell.empty { cursor:default; }
+.cal-cell.past { color:var(--line2); cursor:not-allowed; }
+.cal-cell:not(.empty):not(.past):hover { background:var(--paper2); }
+.cal-cell.in-range { background:#e3ece4; }
+.cal-cell.range-end, .cal-cell.range-start {
+  background:var(--accent); color:var(--paper); font-weight:700;
+}
+.cal-cell.sun { color:var(--red); }
+.cal-cell.range-end.sun, .cal-cell.range-start.sun { color:var(--paper); }
+.date-readout {
+  background:var(--paper2); border:1px solid var(--line); padding:14px 18px;
+  font-size:14.5px; display:flex; justify-content:space-between; align-items:center;
+}
+.date-readout b { font-family:var(--serif); }
+.date-readout .nights { color:var(--accent); font-weight:700; }
+
+/* 강아지 선택 */
+.dog-pick { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; margin:14px 0 8px; }
+.dog-chip {
+  display:flex; align-items:center; gap:12px; padding:14px 16px;
+  background:var(--card); border:1px solid var(--line2); cursor:pointer; transition:.15s;
+}
+.dog-chip.on { border-color:var(--accent); background:#f0f4ef; }
+.dog-chip .av { width:38px; height:38px; border-radius:50%; background:var(--paper2); display:grid; place-items:center; font-size:17px; }
+.dog-chip b { font-size:14.5px; }
+.dog-chip small { display:block; color:var(--ink3); font-size:12.5px; }
+.dog-empty { padding:20px; text-align:center; color:var(--ink3); font-size:14px; border:1px dashed var(--line2); background:var(--paper); }
+.dog-add-btn { display:flex; align-items:center; justify-content:center; gap:6px; padding:14px 16px; background:var(--paper); border:1px dashed var(--accent); color:var(--accent); font-weight:600; font-size:14px; cursor:pointer; }
+.dog-add-btn:hover { background:#f0f4ef; }
+.dog-create { background:var(--card); border:1px solid var(--line2); padding:18px; }
+
+/* 작업 영역 2단 (입력 + 지도) */
+.work { display:grid; grid-template-columns:1fr 1fr; gap:26px; align-items:start; }
+.work .panel-l { min-width:0; }
+.work .panel-r { position:sticky; top:90px; }
+
+/* 지도 */
+#travel-map { width:100%; height:420px; background:#e4e9df; border:1px solid var(--line2); }
+.map-fallback {
+  width:100%; height:420px; border:1px solid var(--line2);
+  background:linear-gradient(135deg,#e7ede6,#dde5db);
+  display:grid; place-items:center; text-align:center; padding:30px; color:var(--ink2);
+}
+.map-fallback .mf-list { margin-top:14px; font-size:13px; text-align:left; max-width:280px; }
+
+.form-row { margin-bottom:16px; }
+.form-row label { display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--ink2); }
+.form-row input, .form-row select {
+  width:100%; padding:13px 15px; font-size:15px; border:1px solid var(--line2);
+  background:var(--card); font-family:var(--sans); outline:none;
+}
+.form-row input:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+.region-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.region-grid select { width:100%; padding:12px 14px; font-size:14.5px; border:1px solid var(--line2); background:var(--card); font-family:var(--sans); outline:none; cursor:pointer; }
+/* 박스형 지역 선택 */
+.pick-label { font-size:13px; font-weight:600; color:var(--ink2); margin-bottom:9px; }
+.rbox-grid { display:flex; flex-wrap:wrap; gap:8px; }
+.rbox { padding:9px 14px; font-size:13.5px; background:var(--card); border:1px solid var(--line2); cursor:pointer; white-space:nowrap; transition:.12s; }
+.rbox:hover { border-color:var(--accent); }
+.rbox.on { background:var(--accent); color:var(--paper); border-color:var(--accent); }
+.rbox.all { font-weight:600; }
+.rbox-loading { font-size:13px; color:var(--ink3); padding:6px 0; }
+.pick-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.pick-head b { font-family:var(--serif); font-size:16px; color:var(--ink); font-weight:700; }
+.pick-reset { font-size:12.5px; color:var(--accent); font-weight:600; cursor:pointer; white-space:nowrap; }
+.pick-reset:hover { text-decoration:underline; }
+.camp-img { width:100%; height:150px; object-fit:cover; border:1px solid var(--line); margin-bottom:12px; display:block; }
+.camp-link { display:inline-block; font-size:13px; font-weight:600; color:var(--accent); border:1px solid var(--accent); padding:6px 12px; }
+.camp-link:hover { background:var(--accent); color:var(--paper); }
+
+.transport-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+.tp {
+  padding:12px 4px; text-align:center; font-size:12.5px; font-weight:600;
+  background:var(--card); border:1px solid var(--line2); cursor:pointer;
+}
+.tp .ti { font-size:18px; display:block; margin-bottom:3px; }
+.tp.on { border-color:var(--accent); background:#f0f4ef; color:var(--accent); }
+
+.btn-line {
+  width:100%; padding:14px; font-size:15px; font-weight:600; cursor:pointer;
+  background:var(--accent); color:var(--paper); border:none; transition:.15s;
+}
+.btn-line:hover { background:var(--accent2); }
+.btn-ghost2 {
+  padding:11px 18px; font-size:14px; font-weight:600; cursor:pointer;
+  background:var(--card); color:var(--ink); border:1px solid var(--line2);
+}
+
+/* Day 탭 (검증) */
+.day-tabs { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+.day-tab { padding:8px 15px; font-size:13.5px; font-weight:600; background:var(--card); border:1px solid var(--line2); cursor:pointer; }
+.day-tab.on { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+.schedule-day-box {
+  background:var(--paper2); border:1px solid var(--line); padding:14px 16px;
+  margin:0 0 20px;
+}
+.schedule-day-label { font-size:13px; font-weight:700; color:var(--ink2); margin-bottom:9px; }
+.schedule-day-current { font-size:12.5px; color:var(--accent); margin-top:8px; font-weight:600; }
+.place-input-row { display:flex; gap:8px; margin-bottom:10px; }
+.place-input-row input { flex:1; padding:12px 14px; border:1px solid var(--line2); background:var(--card); font-family:var(--sans); }
+.place-input-row .rm { width:42px; background:var(--paper2); border:1px solid var(--line2); cursor:pointer; font-size:15px; }
+.add-place { font-size:13.5px; color:var(--accent); font-weight:600; cursor:pointer; background:none; border:none; padding:6px 0; }
+
+/* 결과 카드 */
+.res-card {
+  background:var(--card); border:1px solid var(--line2); padding:18px 20px; margin-bottom:14px;
+  border-left:4px solid var(--line2);
+}
+.res-card.ok { border-left-color:var(--green); }
+.res-card.no_info { border-left-color:var(--amber); }
+.res-card.unknown { border-left-color:var(--amber); }
+.res-card.conditional { border-left-color:var(--amber); }
+.res-card.check { border-left-color:var(--amber); }
+.res-card.no { border-left-color:var(--red); }
+.res-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.res-head h4 { font-family:var(--serif); font-size:17px; }
+.res-badge { font-size:11.5px; font-weight:700; padding:4px 9px; white-space:nowrap; }
+.res-badge.ok { background:var(--green-bg); color:var(--green-tx); }
+.res-badge.no_info { background:var(--amber-bg); color:var(--amber-tx); }
+.res-badge.unknown { background:var(--amber-bg); color:var(--amber-tx); }
+.res-badge.conditional { background:var(--amber-bg); color:var(--amber-tx); }
+.res-badge.no { background:var(--red-bg); color:var(--red-tx); }
+.res-addr { font-size:12.5px; color:var(--ink3); margin:6px 0 10px; }
+.res-msg { font-size:13.5px; color:var(--ink2); line-height:1.6; }
+.res-detail { margin-top:12px; font-size:13px; line-height:1.7; border-top:1px solid var(--line); padding-top:10px; }
+.res-detail .k { color:var(--ink3); font-weight:600; }
+.res-actions { margin-top:14px; display:flex; gap:8px; }
+.btn-pick { padding:9px 16px; font-size:13.5px; font-weight:600; background:var(--ink); color:var(--paper); border:none; cursor:pointer; }
+.btn-pick.added { background:var(--green); }
+.alt-title { font-size:13px; font-weight:700; color:var(--ink2); margin:18px 0 8px; }
+
+/* 선택 일정 리스트 */
+.cart { margin-top:20px; background:var(--paper2); border:1px solid var(--line); padding:16px 18px; }
+.cart h4 { font-family:var(--serif); font-size:15px; margin-bottom:10px; }
+.cart-item { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
+.cart-item:last-child { border:none; }
+.cart-item .x { cursor:pointer; color:var(--red); font-weight:700; }
+.cart-empty { font-size:13px; color:var(--ink3); }
+
+.demo-flag { font-size:11.5px; background:var(--amber-bg); color:var(--amber-tx); padding:3px 8px; font-weight:600; display:inline-block; margin-bottom:10px; }
+.loading { padding:24px; text-align:center; color:var(--ink3); font-size:14px; }
+
+.nav-btns { display:flex; justify-content:space-between; margin-top:32px; gap:12px; }
+
+@media(max-width:960px){
+  .planner { padding:24px 20px 60px; }
+  .work { grid-template-columns:1fr; }
+  .work .panel-r { position:static; }
+  .cal-wrap { grid-template-columns:1fr; }
+  .type-grid { grid-template-columns:1fr; }
+  .transport-grid { grid-template-columns:repeat(3,1fr); }
+}
+
+/* ===== 재설계: 검증 바 + 카테고리 탐색 ===== */
+#setup-region .pick-label:first-child { display:none; }   /* 헤딩은 별도 stage-q로 통일 */
+
+/* 결과가 길어도 이전/일정확정 버튼이 항상 보이도록 하단 고정 */
+.stage1-actions {
+  position:sticky; bottom:0; z-index:20; margin-top:24px;
+  background:linear-gradient(to top, var(--paper) 78%, rgba(239,233,221,0));
+  padding:14px 0 10px; border-top:1px solid var(--line);
+}
+/* 확인 필요(check) 배지 = 앰버 계열 */
+.res-badge.check { background:var(--amber-bg); color:var(--amber-tx); }
+/* 판정 이유(내가 봐야 하는 문구)는 볼드, 장소 설명은 약하게 → 겹쳐 보이지 않게 */
+.res-reason { font-size:14.5px; font-weight:700; color:var(--ink); line-height:1.6; margin-top:2px; }
+.res-desc { font-size:13px; color:var(--ink3); line-height:1.6; margin-top:5px; }
+.verify-count { font-size:13px; color:var(--ink2); margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+.res-detail .k-head { margin-top:4px; }
+.res-detail .k-item { padding-left:4px; color:var(--ink2); }
+/* 반려견 칩 사진 */
+.dog-chip .av { overflow:hidden; }
+.dog-chip .av img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+/* 등록폼 사진 미리보기 */
+.dog-photo-preview { width:88px; height:88px; border-radius:50%; margin:0 auto 10px; background:var(--paper2); display:grid; place-items:center; font-size:30px; overflow:hidden; border:1px solid var(--line2); }
+.dog-photo-preview img { width:100%; height:100%; object-fit:cover; }
+.photo-upload-btn { display:inline-block; font-size:13px; font-weight:600; color:var(--accent); border:1px solid var(--accent); padding:6px 12px; cursor:pointer; }
+/* 결과 카드 폰트 확대 */
+.res-msg { font-size:14.5px; line-height:1.65; }
+.res-addr { font-size:13.5px; }
+.res-detail { font-size:14px; line-height:1.75; }
+.res-head h4 { font-size:17px; }
+
+.verify-bar {
+  background:var(--card); border:1px solid var(--line2);
+  border-top:3px solid var(--accent); padding:20px 22px; margin-bottom:8px;
+}
+.verify-bar .vb-eyebrow {
+  font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:10px;
+}
+.verify-bar .vb-eyebrow::before { content:"✓ "; }
+.vb-row { display:flex; gap:8px; }
+.vb-row input {
+  flex:1; padding:14px 16px; font-size:15px; border:1px solid var(--line2);
+  background:var(--paper); font-family:var(--sans); outline:none;
+}
+.vb-row input:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+.vb-row button {
+  padding:0 24px; background:var(--accent); color:var(--paper); border:none;
+  font-weight:700; font-size:14.5px; cursor:pointer; white-space:nowrap;
+}
+.vb-row button:hover { background:var(--accent2); }
+.verify-hint { font-size:12.5px; color:var(--ink3); margin-top:9px; line-height:1.6; }
+#verify-result { margin-top:16px; }
+#verify-result .res-card:last-child { margin-bottom:0; }
+.verify-routed {
+  display:inline-block; font-size:12px; font-weight:700; color:var(--accent);
+  background:var(--green-bg); padding:4px 10px; margin-bottom:10px;
+}
+
+.browse-head { margin:28px 0 14px; padding-top:24px; border-top:1px solid var(--line); }
+.browse-head b { font-family:var(--serif); font-size:17px; font-weight:700; }
+.browse-head span { display:block; font-size:13px; color:var(--ink3); margin-top:3px; }
+.rec-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.rec-tab {
+  padding:9px 16px; font-size:13.5px; font-weight:600; color:var(--ink2);
+  background:var(--card); border:1px solid var(--line2); cursor:pointer; transition:.12s;
+}
+.rec-tab:hover { border-color:var(--accent); }
+.rec-tab.on { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+#rec-results .res-card:last-child { margin-bottom:0; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="planner">
+
+  <div class="steps-bar">
+    <div class="sb on" id="sb0">1 · 여행 설정</div>
+    <div class="sb" id="sb1">2 · 탐색 · 검증</div>
+    <div class="sb" id="sb2">3 · 일정 확정</div>
+  </div>
+
+  <!-- STAGE 0 : 지역 · 날짜 · 반려견 -->
+  <div class="stage active" id="stage0">
+    <div class="stage-q">어디로, 언제, 누구와 떠나세요?</div>
+    <div class="stage-sub">여행 이름을 먼저 정하고 지역·날짜·반려견을 설정하면, 계획은 자동으로 저장돼요.</div>
+
+    <div class="stage-q" style="font-size:20px; margin:30px 0 4px;">여행 이름</div>
+    <div class="stage-sub" style="margin-bottom:10px;">나중에 마이페이지에서 쉽게 찾을 수 있도록 이름을 정해 주세요.</div>
+    <div class="trip-name-box">
+      <div class="trip-name-label">여행 이름 <span>나중에 마이페이지에서 다시 찾을 때 사용해요.</span></div>
+      <input id="trip-name" class="trip-name-input" type="text" placeholder="예: 콩이랑 서울 나들이" maxlength="50">
+      <div id="draft-save-status" class="draft-save-status">여행 정보는 자동으로 저장돼요.</div>
+    </div>
+
+    <div class="stage-q" style="font-size:20px; margin:30px 0 4px;">여행 지역</div>
+    <div class="stage-sub" style="margin-bottom:12px;">동반 가능한 장소가 있는 지역만 표시돼요. 지역을 먼저 정하면 날짜·반려견 설정이 나타나요.</div>
+    <div id="setup-region"></div>
+
+    <div id="setup-step-date" style="display:none;">
+      <div class="stage-q" style="font-size:20px; margin:34px 0 4px;">여행 날짜</div>
+      <div class="stage-sub" style="margin-bottom:14px;">출발일과 도착일을 차례로 클릭하거나, 드래그해서 기간을 선택하세요.</div>
+      <div class="cal-wrap" id="cal-wrap"></div>
+      <div class="date-readout" id="date-readout"><span>여행 기간을 선택해 주세요.</span></div>
+    </div>
+
+    <div id="setup-step-dog" style="display:none;">
+      <div class="stage-q" style="font-size:20px; margin:34px 0 4px;">함께 가는 반려견</div>
+      <div class="stage-sub" style="margin-bottom:12px;">무게·견종에 따라 동반 조건 판정이 달라져요.</div>
+      <div class="dog-pick" id="dog-pick"></div>
+
+      <div class="nav-btns">
+        <span></span>
+        <button class="btn-line" style="width:auto; padding:14px 34px;" onclick="nextFromSetup()">장소 탐색하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAGE 1 : 탐색 · 검증 -->
+  <div class="stage" id="stage1">
+    <div class="stage-q" id="s1-title">장소 탐색 · 검증</div>
+    <div class="stage-sub" id="s1-sub">가려는 곳은 위에서 바로 검증하고, 아래에서 동반 가능한 곳을 담아 일정을 만드세요.</div>
+
+    <div class="schedule-day-box">
+      <div class="schedule-day-label">방문할 날짜를 먼저 선택해 주세요.</div>
+      <div class="day-tabs" id="day-tabs"></div>
+      <div class="schedule-day-current" id="day-current">현재 선택: 1일차</div>
+    </div>
+
+    <div class="work">
+      <div class="panel-l">
+        <div class="verify-bar">
+          <div class="vb-eyebrow">동반 가능 확인</div>
+          <div class="vb-row">
+            <input id="vq" placeholder="가려는 곳 이름 (관광지·식당·카페·캠핑장)"
+              onkeydown="if(event.key==='Enter')runQuickVerify()">
+            <button onclick="runQuickVerify()">확인</button>
+          </div>
+          <div class="verify-hint">이미 점찍은 곳이 있나요? 이름을 넣으면 반려견 동반 가능 여부를 데이터로 바로 판정해요. 캠핑장 이름도 됩니다.</div>
+          <div id="verify-result"></div>
+        </div>
+
+        <div class="browse-head">
+          <b>동반 가능한 곳 둘러보기</b>
+          <span id="browse-sub"></span>
+        </div>
+        <div class="rec-tabs" id="rec-tabs"></div>
+        <div id="rec-results"></div>
+      </div>
+
+      <div class="panel-r">
+        <div id="map-holder"></div>
+        <div class="cart">
+          <h4>선택한 일정</h4>
+          <div id="cart-list"><div class="cart-empty">아직 담은 장소가 없어요.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-btns stage1-actions">
+      <button class="btn-ghost2" onclick="goStage(0)">이전</button>
+      <button class="btn-line" style="width:auto; padding:14px 34px;" onclick="enterConfirm()">일정 확정으로</button>
+    </div>
+  </div>
+
+  <!-- STAGE 2 : 확정 -->
+  <div class="stage" id="stage2">
+    <div class="stage-q">이 일정으로 확정할까요?</div>
+    <div class="stage-sub">여행 이름과 일정은 이미 저장되어 있어요. 내용을 확인한 뒤 여행을 확정하세요.</div>
+    <div class="work">
+      <div class="panel-l">
+        <div class="trip-confirm-title" id="confirm-trip-title"></div>
+        <div id="confirm-summary"></div>
+      </div>
+      <div class="panel-r">
+        <div id="map-holder-2"></div>
+      </div>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-ghost2" onclick="goStage(1)">이전</button>
+      <button class="btn-line" style="width:auto; padding:14px 40px;" onclick="confirmTrip()">여행 계획 확정하기</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+const USER_DOGS = {% if user and user.dogs %}{{ user.dogs|selectattr('name')|list|tojson }}{% else %}[]{% endif %};
+const IS_LOGGED = {% if user %}true{% else %}false{% endif %};
+const KAKAO_KEY = "{{ KAKAO_JS_KEY }}";
+const INITIAL_TRIP = {% if edit_trip %}{{ edit_trip|tojson }}{% else %}null{% endif %};
+
+/* ============ 시/도 → 시/군/구 ============ */
+const REGIONS = {
+ "서울특별시":{code:1,cities:["강남구","강동구","강북구","강서구","관악구","광진구","구로구","금천구","노원구","도봉구","동대문구","동작구","마포구","서대문구","서초구","성동구","성북구","송파구","양천구","영등포구","용산구","은평구","종로구","중구","중랑구"]},
+ "부산광역시":{code:6,cities:["중구","서구","동구","영도구","부산진구","동래구","남구","북구","해운대구","사하구","금정구","강서구","연제구","수영구","사상구","기장군"]},
+ "대구광역시":{code:4,cities:["중구","동구","서구","남구","북구","수성구","달서구","달성군","군위군"]},
+ "인천광역시":{code:2,cities:["중구","동구","미추홀구","연수구","남동구","부평구","계양구","서구","강화군","옹진군"]},
+ "광주광역시":{code:5,cities:["동구","서구","남구","북구","광산구"]},
+ "대전광역시":{code:3,cities:["동구","중구","서구","유성구","대덕구"]},
+ "울산광역시":{code:7,cities:["중구","남구","동구","북구","울주군"]},
+ "세종특별자치시":{code:8,cities:["세종시"]},
+ "경기도":{code:31,cities:["수원시","성남시","고양시","용인시","부천시","안산시","안양시","남양주시","화성시","평택시","의정부시","시흥시","파주시","김포시","광명시","광주시","군포시","오산시","이천시","양주시","안성시","구리시","포천시","의왕시","하남시","여주시","동두천시","과천시","가평군","양평군","연천군"]},
+ "강원특별자치도":{code:32,cities:["춘천시","원주시","강릉시","동해시","태백시","속초시","삼척시","홍천군","횡성군","영월군","평창군","정선군","철원군","화천군","양구군","인제군","고성군","양양군"]},
+ "충청북도":{code:33,cities:["청주시","충주시","제천시","보은군","옥천군","영동군","증평군","진천군","괴산군","음성군","단양군"]},
+ "충청남도":{code:34,cities:["천안시","공주시","보령시","아산시","서산시","논산시","계룡시","당진시","금산군","부여군","서천군","청양군","홍성군","예산군","태안군"]},
+ "경상북도":{code:35,cities:["포항시","경주시","김천시","안동시","구미시","영주시","영천시","상주시","문경시","경산시","의성군","청송군","영양군","영덕군","청도군","고령군","성주군","칠곡군","예천군","봉화군","울진군","울릉군"]},
+ "경상남도":{code:36,cities:["창원시","진주시","통영시","사천시","김해시","밀양시","거제시","양산시","의령군","함안군","창녕군","고성군","남해군","하동군","산청군","함양군","거창군","합천군"]},
+ "전북특별자치도":{code:37,cities:["전주시","군산시","익산시","정읍시","남원시","김제시","완주군","진안군","무주군","장수군","임실군","순창군","고창군","부안군"]},
+ "전라남도":{code:38,cities:["목포시","여수시","순천시","나주시","광양시","담양군","곡성군","구례군","고흥군","보성군","화순군","장흥군","강진군","해남군","영암군","무안군","함평군","영광군","장성군","완도군","진도군","신안군"]},
+ "제주특별자치도":{code:39,cities:["제주시","서귀포시"]},
+};
+/* ============ 시/도 → 시/군/구 (박스형 선택) ============ */
+function shortName(doName){ return (doName||'').replace(/(특별자치도|특별자치시|특별시|광역시|도)$/,''); }
+
+/* API 키가 없을 때(데모 모드)의 폴백: 전국이 아니라
+   데모 데이터(DEMO)에 실제로 장소가 있는 시/도만 추린다.
+   source='camp'면 캠핑 데모, 그 외는 숙소·식당·축제 데모 기준. */
+function demoAvailableProvinces(source){
+  const pools = source==='camp' ? [DEMO.camping] : [DEMO.stay, DEMO.food, DEMO.festival];
+  const found=new Set();
+  pools.flat().forEach(p=>{
+    const addr=p.addr||'';
+    for(const full of Object.keys(REGIONS)){
+      if(addr.startsWith(full) || addr.startsWith(shortName(full))){ found.add(full); break; }
+    }
+  });
+  return [...found].map(n=>({name:n, code:REGIONS[n].code}));
+}
+const SRC={};
+const PROV_LIST={};          // source별 캐시
+const REGION_ERR={};         // source별 실패 사유(키는 있는데 API가 실패한 경우)
+async function getProvinceList(source){
+  source=source||'pet';
+  if(PROV_LIST[source]) return PROV_LIST[source];
+  let list=null;
+  REGION_ERR[source]=null;
+  try{
+    const r=await api('/api/regions/provinces',{source});
+    if(r){
+      if(r.provinces && r.provinces.length) list=r.provinces;
+      // 키는 설정돼 있는데(no_key 아님) 목록이 비면 = 실제 API 실패
+      else if(!r.no_key && (r.camp_error || r.error)) REGION_ERR[source]=r.hint || r.camp_error || r.error;
+    }
+  }catch(e){}
+  // 서버가 목록을 못 주면(키 미설정/오류) 전국을 다 보여주지 않고 데모 지역만
+  if(!list || !list.length) list=demoAvailableProvinces(source);
+  PROV_LIST[source]=list; return list;
+}
+const SIG_CACHE={};
+async function getSigunguList(code, name, source){
+  source=source||'pet';
+  const ck=source+':'+code;
+  if(SIG_CACHE[ck]) return SIG_CACHE[ck];
+  let list=null;
+  try{ const r=await api('/api/regions/sigungu',{area_code:code, source}); if(r && r.sigungu && r.sigungu.length) list=r.sigungu; }catch(e){}
+  if(!list) list=(REGIONS[name]?REGIONS[name].cities:[]).map(c=>({code:null,name:c})); // 폴백
+  SIG_CACHE[ck]=list; return list;
+}
+
+function regionBoxHTML(prefix, source){
+  const cap = source==='camp' ? '동반 가능한 캠핑장이 있는 지역만' : '동반 가능한 지역만';
+  return `<div class="pick-label">여행 지역 (${cap} 표시)</div>
+    <div id="${prefix}-dobox" class="rbox-grid"><div class="rbox-loading">지역 불러오는 중…</div></div>
+    <div id="${prefix}-sibox" class="rbox-grid" style="margin-top:10px;"></div>`;
+}
+async function initRegionBoxes(prefix, source){
+  source=source||'pet'; SRC[prefix]=source;
+  const box=document.getElementById(prefix+'-dobox'); if(!box) return;
+  S.area_code=null; S.sigungu_code=null; S.sigungu_name=null; S.regionText='';
+  const provs=await getProvinceList(source);
+  if(REGION_ERR[source]){   // 키는 있는데 API 실패 → 데모로 숨기지 않고 사유 노출
+    box.innerHTML=`<div class="rbox-loading" style="color:var(--red); line-height:1.7;">
+      ⚠ ${source==='camp'?'고캠핑':'관광'} API에서 지역을 불러오지 못했어요.<br>
+      <span style="font-size:12px; color:var(--ink2);">${REGION_ERR[source]}</span><br>
+      <span style="font-size:12px; color:var(--ink3);">원인 확인: 브라우저에서 <code>/api/debug/api</code> 열기</span></div>`;
+    return;
+  }
+  if(!provs.length){ box.innerHTML=`<div class="rbox-loading">표시할 동반 가능 지역이 없어요.</div>`; return; }
+  box.innerHTML=provs.map(p=>`<div class="rbox" onclick="pickDo('${prefix}','${p.name}',${p.code},this)">${shortName(p.name)}</div>`).join('');
+  const sib=document.getElementById(prefix+'-sibox'); if(sib) sib.innerHTML='';
+}
+async function pickDo(prefix, name, code, el){
+  document.querySelectorAll('#'+prefix+'-dobox .rbox').forEach(x=>x.classList.remove('on'));
+  el.classList.add('on');
+  S.area_code=code; S.sigungu_code=null; S.sigungu_name=null; S.regionDo=name; S.regionText=shortName(name);
+  const sib=document.getElementById(prefix+'-sibox');
+  sib.innerHTML=`<div class="rbox-loading">시/군/구 불러오는 중…</div>`;
+  const sig=await getSigunguList(code, name, SRC[prefix]);
+  let h=`<div class="rbox all on" onclick="pickSi('${prefix}',null,'전체',this)">${shortName(name)} 전체</div>`;
+  h+=sig.map(s=>`<div class="rbox" onclick="pickSi('${prefix}','${s.code}','${s.name}',this)">${s.name}</div>`).join('');
+  sib.innerHTML=h;   // 기본값 '전체' 선택
+  syncSetupSteps();  // 시/군/구까지 표시된 뒤에 날짜 단계를 노출(아래에서 갑자기 떠서 건너뛰는 것 방지)
+}
+function pickSi(prefix, code, label, el){
+  document.querySelectorAll('#'+prefix+'-sibox .rbox').forEach(x=>x.classList.remove('on'));
+  el.classList.add('on');
+  const isCode=(code!==null && String(code)!=='null' && /^\d+$/.test(String(code)));
+  S.sigungu_code=isCode?code:null;
+  const isAll=(label==='전체' || label==null);
+  S.sigungu_name=isAll ? null : label;
+  // '전체'가 아니면 시군구명을 지역 텍스트에 포함
+  S.regionText = isAll ? shortName(S.regionDo) : (shortName(S.regionDo)+' '+label);
+  syncSetupSteps();
+}
+
+/* 설정 단계 순차 노출: 지역 → 날짜 → 반려견 (지역이 늦게 동기화돼 건너뛰는 것 방지) */
+function syncSetupSteps(){
+  const dateEl=document.getElementById('setup-step-date');
+  const dogEl=document.getElementById('setup-step-dog');
+  if(dateEl) dateEl.style.display = S.area_code ? '' : 'none';
+  if(dogEl)  dogEl.style.display = (S.area_code && S.start && S.end) ? '' : 'none';
+  scheduleDraftSave();
+}
+
+/* 지역 박스 <-> 결과 전환 */
+function pickHead(prefix, title){
+  return `<div class="pick-head"><b>${title}</b><span class="pick-reset" onclick="showPicker('${prefix}')">지역 다시 선택</span></div>`;
+}
+function hidePicker(prefix){ const p=document.getElementById(prefix+'-picker'); if(p) p.style.display='none'; }
+function showPicker(prefix){
+  const p=document.getElementById(prefix+'-picker'); if(p) p.style.display='';
+  const r=document.getElementById(prefix+'-results'); if(r) r.innerHTML='';
+}
+
+/* ============ 상태 ============ */
+const S = {
+  tripId:null, title:'', confirmed:false, type:'plan', start:null, end:null, dogs:[], transport:'car',
+  area:'', regionDo:'', regionText:'', area_code:null, sigungu_code:null, sigungu_name:null,
+  hotel:null, activeDay:0, dayInputs:[[""]], stops:[],
+};
+
+/* ============ 데모 폴백 데이터 (API 키 없을 때만 사용) ============ */
+const DEMO = {
+  stay:[
+    {title:"서귀포 애견동반 펜션 '멍하우스'", addr:"제주 서귀포시 중문관광로 12", tel:"064-000-1234", mapx:126.4123, mapy:33.2496, dist:0.0, _pet:true, note:"전 객실 마당 있음 · 소·중형견 2마리까지", image:"https://placehold.co/600x300/e7e0d1/2f5d4a?text=Pet+Pension", homepage:"https://visitkorea.or.kr"},
+    {title:"제주 반려견 리조트 '포포인츠'", addr:"제주 서귀포시 색달동 3025", tel:"064-000-5678", mapx:126.4201, mapy:33.2531, dist:0.0, _pet:true, note:"대형견 가능 · 울타리 운동장 완비", image:"https://placehold.co/600x300/e7e0d1/2f5d4a?text=Dog+Resort", homepage:"https://visitkorea.or.kr"},
+    {title:"오션뷰 도그스테이", addr:"제주 서귀포시 대포동 100", tel:"064-000-2222", mapx:126.4098, mapy:33.2410, dist:0.0, _pet:true, note:"체중 제한 없음 · 리드줄 필수", image:"https://placehold.co/600x300/e7e0d1/2f5d4a?text=Ocean+Dog+Stay", homepage:""},
+  ],
+  food:[
+    {title:"테라스 다이닝 '햇살가든'", addr:"제주 서귀포시 중문로 55", tel:"064-111-1111", mapx:126.4150, mapy:33.2480, dist:0.4, _pet:true, note:"테라스 구역만 동반 가능", image:"https://placehold.co/600x300/f4ecd6/8a5f12?text=Terrace+Dining", homepage:"https://visitkorea.or.kr"},
+    {title:"반려견 동반 카페 '초록숲'", addr:"제주 서귀포시 중문로 61", tel:"064-111-2222", mapx:126.4172, mapy:33.2472, dist:0.6, _pet:true, note:"실내외 모두 동반 가능 · 배변패드 제공", image:"https://placehold.co/600x300/e7f0e8/2c6b41?text=Dog+Cafe", homepage:""},
+    {title:"펫프렌들리 브런치 '모닝콩'", addr:"제주 서귀포시 색달동 22", tel:"064-111-3333", mapx:126.4133, mapy:33.2515, dist:0.9, _pet:true, note:"소형견 방석 대여", image:"https://placehold.co/600x300/faf6ee/221f19?text=Brunch", homepage:""},
+  ],
+  camping:[
+    {title:"곶자왈 오토캠핑장", addr:"제주 서귀포시 안덕면 상천리", tel:"064-222-1111", mapx:126.3620, mapy:33.3050, verdict:"ok", animal:"가능", induty:"자동차야영장", intro:"숲속 오토캠핑 · 반려견 리드줄 2m 이하 착용", facility:"화장실 · 샤워실 · 개수대 · 전기", homepage:"https://gocamping.or.kr", image:""},
+    {title:"바다별 글램핑", addr:"제주 서귀포시 표선면 하천리", tel:"064-222-2222", mapx:126.8340, mapy:33.3270, verdict:"conditional", animal:"가능(소형견)", induty:"글램핑", intro:"소형견만 동반 가능 · 예방접종 확인서 지참", facility:"샤워실 · 매점 · 무선인터넷", homepage:"https://gocamping.or.kr", image:""},
+    {title:"대관령 반려견 오토캠핑장", addr:"강원특별자치도 평창군 대관령면", tel:"033-333-1111", mapx:128.6900, mapy:37.6900, verdict:"ok", animal:"가능", induty:"자동차야영장", intro:"고원 지대 오토캠핑 · 넓은 반려견 운동장", facility:"화장실 · 샤워실 · 매점 · 전기", homepage:"https://gocamping.or.kr", image:""},
+    {title:"자라섬 도그 캠핑파크", addr:"경기도 가평군 가평읍 자라섬로", tel:"031-580-2000", mapx:127.5250, mapy:37.8280, verdict:"ok", animal:"가능", induty:"일반야영장", intro:"울타리형 도그런 완비 · 대형견 가능", facility:"화장실 · 샤워실 · 개수대 · 무선인터넷", homepage:"https://gocamping.or.kr", image:""},
+    {title:"안면도 펫 오토캠핑", addr:"충청남도 태안군 안면읍", tel:"041-670-2000", mapx:126.3330, mapy:36.5100, verdict:"conditional", animal:"가능(소형견)", induty:"자동차야영장", intro:"바다 근처 · 소형견 동반, 목줄 필수", facility:"화장실 · 샤워실 · 매점", homepage:"https://gocamping.or.kr", image:""},
+    {title:"담양 대나무숲 반려캠핑", addr:"전라남도 담양군 담양읍", tel:"061-380-3114", mapx:126.9880, mapy:35.3210, verdict:"ok", animal:"가능", induty:"글램핑", intro:"죽녹원 인근 · 반려견 산책로 연결", facility:"화장실 · 샤워실 · 카페 · 전기", homepage:"https://gocamping.or.kr", image:""},
+    {title:"가조 글램핑&펫", addr:"경상남도 거창군 가조면", tel:"055-940-3000", mapx:127.8700, mapy:35.7000, verdict:"ok", animal:"가능", induty:"글램핑", intro:"계곡 옆 글램핑 · 반려견 수영장 운영", facility:"샤워실 · 매점 · 카페 · 무선인터넷", homepage:"https://gocamping.or.kr", image:""},
+    {title:"보문 반려동물 캠핑장", addr:"경상북도 경주시 보문로", tel:"054-740-8600", mapx:129.2900, mapy:35.8500, verdict:"conditional", animal:"가능(15kg 미만)", induty:"자동차야영장", intro:"보문호 인근 · 중소형견 동반, 예방접종 확인서", facility:"화장실 · 샤워실 · 개수대 · 전기", homepage:"https://gocamping.or.kr", image:""},
+  ],
+  festival:[
+    {title:"제주 들불축제", addr:"제주 제주시 애월읍 봉성리", tel:"064-728-2752", mapx:126.3500, mapy:33.4200, note:"야외 개최 · 리드줄 착용 시 반려견 동반 가능", image:"https://placehold.co/600x300/f1e2df/843029?text=Festival", homepage:"https://visitkorea.or.kr"},
+    {title:"서귀포 유채꽃 국제걷기대회", addr:"제주 서귀포시 표선면", tel:"064-760-2114", mapx:126.5600, mapy:33.3260, note:"반려견 동반 가능 · 배변봉투 지참", image:"https://placehold.co/600x300/f4ecd6/8a5f12?text=Walking+Festival", homepage:""},
+  ],
+};
+
+/* ============ 스테이지 이동 (3단계) ============ */
+function goStage(n){
+  for(let i=0;i<3;i++){
+    document.getElementById('stage'+i).classList.toggle('active', i===n);
+    const sb=document.getElementById('sb'+i);
+    sb.classList.toggle('on', i===n);
+    sb.classList.toggle('done', i<n);
+  }
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+async function nextFromSetup(){
+  const title=(document.getElementById('trip-name')?.value||'').trim();
+  if(!title){ alert('여행 이름을 입력해 주세요.'); document.getElementById('trip-name')?.focus(); return; }
+  if(!S.area_code){ alert('여행 지역을 선택해 주세요.'); return; }
+  if(!S.start || !S.end){ alert('여행 날짜를 선택해 주세요.'); return; }
+  if(!S.dogs.length){ alert('함께 갈 반려견을 선택해 주세요.'); return; }
+  S.title=title; S.area = S.regionText;
+  await saveDraft(true);
+  goStage(1);
+  buildStage1();
+  setTimeout(()=>initMap('map-holder'), 60);
+}
+
+function enterConfirm(){
+  if(S.stops.length===0){ alert('일정에 최소 한 곳 이상 담아 주세요.'); return; }
+  goStage(2);
+  buildConfirm();
+  setTimeout(()=>{ initMap('map-holder-2'); drawStops('map-holder-2'); }, 60);
+}
+
+/* ============ STAGE 1 : 탐색 · 검증 ============ */
+function totalTripDays(){
+  if(!S.start || !S.end) return 1;
+  return Math.max(1, nights()+1);
+}
+function setActiveDay(day){
+  S.activeDay=Math.max(0, Math.min(Number(day)||0, totalTripDays()-1));
+  renderDayTabs();
+  renderCart();
+  refreshMapFromCart();
+}
+function renderDayTabs(){
+  const box=document.getElementById('day-tabs');
+  if(!box) return;
+  const days=totalTripDays();
+  if(S.activeDay >= days) S.activeDay=days-1;
+  box.innerHTML=Array.from({length:days},(_,i)=>
+    `<button type="button" class="day-tab ${i===S.activeDay?'on':''}" onclick="setActiveDay(${i})">${i+1}일차</button>`
+  ).join('');
+  const current=document.getElementById('day-current');
+  if(current) current.textContent=`현재 선택: ${S.activeDay+1}일차 · 아래에서 장소를 담으면 ${S.activeDay+1}일차 일정으로 들어가요.`;
+}
+function buildStage1(){
+  const n=nights();
+  document.getElementById('s1-title').textContent = `${S.regionText||'여행'} · ${n}박 ${n+1}일`;
+  document.getElementById('vq').value='';
+  document.getElementById('verify-result').innerHTML='';
+  renderDayTabs();
+  activeRecTab=null;          // 스테이지1을 다시 만들 때 눌려있던 카테고리 탭 상태도 초기화
+  renderRecTabs();
+  renderCart();
+  document.getElementById('rec-results').innerHTML =
+    `<div class="cart-empty">위 카테고리(숙소·식당·카페·관광지·캠핑)를 눌러 동반 가능한 곳을 둘러보세요.</div>`;
+}
+
+/* ---- 검증 바 : 지역 내 키워드가 들어간 장소를 전부 판정해서 보여줌 ---- */
+async function runQuickVerify(){
+  const name=document.getElementById('vq').value.trim();
+  if(!name){ alert('확인할 장소 이름을 입력해 주세요.'); return; }
+  const box=document.getElementById('verify-result');
+  box.innerHTML=`<div class="loading">'${name}' 동반 조건을 데이터로 확인하는 중…</div>`;
+
+  const r=await api('/api/tour/verify', {name, area_code:S.area_code, sigungu_code:S.sigungu_code, sigungu_name:S.sigungu_name, region:S.regionText, dogs:S.dogs});
+
+  if(r && r.no_key){ box.innerHTML=demoVerifyCard(name, null); return; }
+
+  if(r && r.success){
+    if(r.results && r.results.length){
+      box.innerHTML=listCards(r.results, (p)=>`pickStop(${jsAttr(p)},"${p.verdict}")`, '일정에 담기');
+      refreshMapWith(r.results.filter(p=>p.mapx && p.mapy));
+      return;
+    }
+    // 결과 없음 → 지역 내 확실한 동반 가능처 안내
+    box.innerHTML=`<div class="res-card unknown">
+      <div class="res-head"><h4>${name}</h4><span class="res-badge unknown">확인 필요</span></div>
+      <div class="res-reason">${r.message || `'${name}'에 대한 데이터를 이 지역에서 찾지 못했어요. 철자나 지역을 바꿔보세요.`}</div>`
+      + ((r.alternatives&&r.alternatives.length)? `<div class="alt-title">대신 이런 확실한 동반 가능처는 어때요?</div>`+r.alternatives.map(altCard).join('') : '')
+      + `</div>`;
+    return;
+  }
+  box.innerHTML=`<div class="res-card unknown"><div class="res-head"><h4>${name}</h4>
+    <span class="res-badge unknown">오류</span></div>
+    <div class="res-msg">조회 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.</div></div>`;
+}
+
+/* ---- 카테고리 탐색 : 모든 카드에 판정 배지 ---- */
+const REC_TABS = [
+  ['stay','숙소'], ['food','식당·카페'], ['tourist','관광지'], ['camp','캠핑'],
+];
+let activeRecTab = null;
+function renderRecTabs(){
+  document.getElementById('rec-tabs').innerHTML = REC_TABS.map(([k,l])=>
+    `<div class="rec-tab ${k===activeRecTab?'on':''}" onclick="loadRecTab('${k}')">${l}</div>`).join('');
+  document.getElementById('browse-sub').textContent =
+    `${S.regionText||'선택 지역'}에서 반려견과 함께 갈 수 있는 곳이에요. 카드를 담으면 오른쪽 일정에 추가돼요.`;
+}
+function emptyRec(msg){ return `<div class="cart-empty">${msg}</div>`; }
+function demoFlag(){ return `<div class="demo-flag">데모 데이터 · TOURAPI_KEY 설정 시 실데이터로 전환</div>`; }
+function demoByKind(kind){
+  let items;
+  if(kind==='stay') items=DEMO.stay;
+  else if(kind==='food') items=DEMO.food;
+  else if(kind==='festival') items=DEMO.festival;
+  else items=DEMO.food;  // tourist 데모 세트 미보유 → 임시 표시(데모 모드 한정)
+  // 데모도 실제 서비스와 같은 원칙: 동반 가능/확인 필요만 노출
+  return items.map(p=>({...p, verdict:p.verdict||'ok', inquiry:p.inquiry||false}))
+              .filter(p=>canBrowse(p.verdict));
+}
+
+async function loadRecTab(kind, wide){
+  // wide=true : 사용자가 '도 전체에서 보기'를 눌러 시/군/구 제한을 푼 경우(재조회 허용)
+  if(!wide && kind===activeRecTab){   // 같은 탭 다시 누르면 접기
+    activeRecTab=null; renderRecTabs();
+    document.getElementById('rec-results').innerHTML =
+      `<div class="cart-empty">카테고리를 눌러 동반 가능한 곳을 둘러보세요.</div>`;
+    return;
+  }
+  activeRecTab=kind; renderRecTabs();
+  const box=document.getElementById('rec-results');
+  if(!S.regionText){ box.innerHTML=emptyRec('먼저 여행 지역을 선택해 주세요.'); return; }
+
+  // 시/군/구를 선택했다면 '도 전체 ↔ 선택 지역'을 오갈 수 있게 한다.
+  const hasSig = !!S.sigungu_name;
+  const provName = shortName(S.regionDo);
+  const regionForQuery = wide ? provName : S.regionText;   // wide면 도 전체로 조회
+  const sigForQuery    = wide ? null      : S.sigungu_code;
+
+  // 좁은 범위에서는 '도 전체에서 보기', 넓힌 상태에서는 다시 '선택 지역만 보기'
+  const scopeBtn = wide && hasSig
+    ? `<div style="margin-top:12px;"><button class="btn-ghost2" onclick="loadRecTab('${kind}', false)">${S.sigungu_name}만 보기</button></div>`
+    : (!wide && hasSig
+      ? `<div style="margin-top:12px;"><button class="btn-ghost2" onclick="loadRecTab('${kind}', true)">${provName} 전체에서 보기</button></div>`
+      : '');
+
+  box.innerHTML=`<div class="loading">${regionForQuery} 동반 가능한 곳을 불러오는 중…</div>`;
+
+  if(kind==='camp'){
+    const r=await api('/api/camp/area', {region:regionForQuery, sigungu_name:wide ? null : S.sigungu_name, dogs:S.dogs});
+    const demo=(r&&r.no_key);
+    let camps;
+    if(demo){
+      const prov=shortName((regionForQuery||'').split(' ')[0]);
+      camps=DEMO.camping.filter(c=>{
+        const addr=c.addr||'';
+        if(!addr.includes(prov)) return false;
+        if(wide || !S.sigungu_name) return true;
+        return addr.includes(S.sigungu_name);
+      });
+    } else { camps=(r&&r.camps)||[]; }
+    camps = camps.filter(c=>canBrowse(c.verdict));
+    if(!camps.length){ box.innerHTML=emptyRec(`'${regionForQuery}'의 동반 가능한 캠핑장 데이터를 찾지 못했어요.`)+scopeBtn; return; }
+    box.innerHTML=(demo?demoFlag():'')+camps.map(c=>campCard(c,true)).join('')+scopeBtn;
+    refreshMapWith(camps);
+    return;
+  }
+
+  const r=await api('/api/tour/recommend', {area_code:S.area_code, sigungu_code:sigForQuery, sigungu_name:wide ? null : S.sigungu_name, region:regionForQuery, kind, dogs:S.dogs});
+  const demo=(r&&r.no_key);
+  const rawPlaces = demo ? demoByKind(kind) : ((r&&r.places)||[]);
+  // 둘러보기/추천에는 동반 가능(ok)·조건부(conditional)·확인 필요(check)만 표시
+  const places = rawPlaces.filter(p=>canBrowse(p.verdict));
+  if(!places.length){ box.innerHTML=emptyRec(`'${regionForQuery}'에서 이 카테고리의 동반 가능 장소를 찾지 못했어요.`)+scopeBtn; return; }
+  box.innerHTML=(demo?demoFlag():'')+listCards(places, (p)=>`pickStop(${jsAttr(p)},${JSON.stringify(p.verdict||'ok')})`, '일정에 담기')+scopeBtn;
+  refreshMapWith(places);
+}
+
+/* ============ 캘린더 (드래그 범위 선택) ============ */
+let calBase = new Date(); calBase.setDate(1);
+let dragging=false, selecting=false;
+
+function renderCal(){
+  const wrap=document.getElementById('cal-wrap'); wrap.innerHTML='';
+  for(let m=0;m<2;m++){
+    const d=new Date(calBase.getFullYear(), calBase.getMonth()+m, 1);
+    wrap.appendChild(monthEl(d, m));
+  }
+  paintRange();
+}
+function monthEl(d, idx){
+  const y=d.getFullYear(), mo=d.getMonth();
+  const first=new Date(y,mo,1).getDay();
+  const days=new Date(y,mo+1,0).getDate();
+  const el=document.createElement('div'); el.className='cal';
+  let h=`<div class="cal-hd">
+      ${idx===0?`<button class="cal-nav" onclick="calMove(-1)">‹</button>`:'<span></span>'}
+      <b>${y}년 ${mo+1}월</b>
+      ${idx===1?`<button class="cal-nav" onclick="calMove(1)">›</button>`:'<span></span>'}
+    </div><div class="cal-grid">`;
+  ['일','월','화','수','목','금','토'].forEach((w,i)=>h+=`<div class="cal-dow" style="${i===0?'color:var(--red)':''}">${w}</div>`);
+  for(let i=0;i<first;i++) h+=`<div class="cal-cell empty"></div>`;
+  const today=new Date(); today.setHours(0,0,0,0);
+  for(let day=1;day<=days;day++){
+    const cur=new Date(y,mo,day);
+    const iso=fmt(cur);
+    const past = cur<today;
+    const dow = cur.getDay();
+    h+=`<div class="cal-cell ${past?'past':''} ${dow===0?'sun':''}" data-iso="${iso}"
+          ${past?'':`onmousedown="calDown('${iso}')" onmouseenter="calEnter('${iso}')" onmouseup="calUp()"
+          ontouchstart="calDown('${iso}')" `}>${day}</div>`;
+  }
+  h+='</div>';
+  el.innerHTML=h; return el;
+}
+function calMove(dir){ calBase.setMonth(calBase.getMonth()+dir); renderCal(); }
+function calDown(iso){
+  if(!S.start || (S.start && S.end)){
+    // 새 선택 시작 = 출발일
+    S.start=iso; S.end=null; selecting=true; dragging=true;
+  } else if(selecting){
+    // 두 번째 클릭 = 도착일
+    S.end=iso; normalizeRange(); selecting=false; dragging=false;
+  }
+  paintRange();
+}
+function calEnter(iso){ if(dragging){ S.end=iso; paintRange(); } }
+function calUp(){
+  if(!dragging) return;
+  dragging=false;
+  if(S.end && S.end!==S.start){
+    // 드래그로 기간이 지정됨 -> 확정
+    normalizeRange(); selecting=false;
+  } else {
+    // 한 번만 클릭 -> 도착일 클릭 대기
+    S.end=null; selecting=true;
+  }
+  paintRange();
+}
+document.addEventListener('mouseup', calUp);
+
+function normalizeRange(){
+  if(S.start && S.end && S.start>S.end){ const t=S.start; S.start=S.end; S.end=t; }
+}
+function paintRange(){
+  document.querySelectorAll('.cal-cell[data-iso]').forEach(c=>{
+    const iso=c.dataset.iso;
+    c.classList.remove('in-range','range-start','range-end');
+    if(!S.start) return;
+    const a=S.start, b=S.end||S.start;
+    const lo=a<b?a:b, hi=a<b?b:a;
+    if(iso===lo) c.classList.add('range-start');
+    if(iso===hi) c.classList.add('range-end');
+    if(iso>lo && iso<hi) c.classList.add('in-range');
+  });
+  const ro=document.getElementById('date-readout');
+  if(S.start && S.end){
+    const n=nights();
+    ro.innerHTML=`<span><b>${S.start}</b> → <b>${S.end}</b></span><span class="nights">${n}박 ${n+1}일</span>`;
+  }
+  if(typeof syncSetupSteps==='function') syncSetupSteps();
+}
+function nights(){
+  const a=new Date(S.start), b=new Date(S.end);
+  return Math.round((b-a)/86400000);
+}
+function fmt(d){ const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+/* ============ 강아지 선택 ============ */
+function renderDogs(){
+  const box=document.getElementById('dog-pick');
+  let html='';
+  if(USER_DOGS.length===0){
+    html=`<div class="dog-empty" style="grid-column:1/-1;">아직 등록된 반려견이 없어요. 아래 버튼으로 등록해 주세요.</div>`;
+    S.dogs=[];
+  } else {
+    html=USER_DOGS.map((d,i)=>`
+      <div class="dog-chip" data-i="${i}" onclick="toggleDog(this)">
+        <div class="av">${d.photo?`<img src="${d.photo}" alt="">`:'🐾'}</div>
+        <div><b>${d.name}</b><small>${d.desc}</small></div>
+      </div>`).join('');
+    S.dogs=[];
+  }
+  html+=`<button class="dog-add-btn" onclick="openDogCreate()">＋ 반려견 등록</button>`;
+  box.innerHTML=html;
+}
+function toggleDog(el){
+  el.classList.toggle('on');
+  S.dogs=[...document.querySelectorAll('.dog-chip.on')].map(c=>USER_DOGS[+c.dataset.i]);
+  scheduleDraftSave();
+}
+const DOG_BREEDS = ['말티즈','푸들','포메라니안','시츄','치와와','요크셔테리어','비숑프리제','스피츠','웰시코기','시바견','비글','코커스패니얼','보더콜리','진돗개','래브라도 리트리버','골든 리트리버','사모예드','허스키','믹스견','기타'];
+function breedSelectHTML(id, val){
+  const opts = ['<option value="">견종 선택 (선택)</option>']
+    .concat(DOG_BREEDS.map(b=>`<option value="${b}" ${b===val?'selected':''}>${b}</option>`)).join('');
+  return `<select id="${id}">${opts}</select>`;
+}
+let newDogPhoto = '';
+function resizeImage(file, max, cb){
+  const reader=new FileReader();
+  reader.onload=ev=>{ const img=new Image();
+    img.onload=()=>{ let w=img.width,h=img.height;
+      if(w>h&&w>max){h=Math.round(h*max/w);w=max;} else if(h>=w&&h>max){w=Math.round(w*max/h);h=max;}
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h); cb(c.toDataURL('image/jpeg',0.82)); };
+    img.src=ev.target.result; };
+  reader.readAsDataURL(file);
+}
+function onNewDogPhoto(e){ const f=e.target.files[0]; if(!f) return;
+  resizeImage(f,320,url=>{ newDogPhoto=url;
+    document.getElementById('new-dog-photo-preview').innerHTML=`<img src="${url}" alt="">`; }); }
+function openDogCreate(){
+  newDogPhoto='';
+  const box=document.getElementById('dog-pick');
+  box.innerHTML=`
+    <div class="dog-create" style="grid-column:1/-1;">
+      <div style="text-align:center; margin-bottom:14px;">
+        <div class="dog-photo-preview" id="new-dog-photo-preview">🐾</div>
+        <label class="photo-upload-btn">사진 선택<input type="file" accept="image/*" style="display:none;" onchange="onNewDogPhoto(event)"></label>
+      </div>
+      <div class="form-row"><label>이름</label><input type="text" id="new-dog-name" placeholder="예: 보리"></div>
+      <div class="form-row"><label>견종</label>${breedSelectHTML('new-dog-breed','')}</div>
+      <div class="form-row"><label>무게 (kg)</label><input type="number" id="new-dog-weight" min="0" step="0.1" placeholder="예: 18"></div>
+      <div class="form-row"><label>크기</label>
+        <select id="new-dog-size">
+          <option value="">크기 선택</option>
+          <option value="small">소형견 (~10kg)</option>
+          <option value="medium">중형견 (10~25kg)</option>
+          <option value="large">대형견 (25kg~)</option>
+        </select></div>
+      <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:14px; cursor:pointer;">
+        <input type="checkbox" id="new-dog-guide" style="width:auto; margin:0;"> 맹인 안내견이에요 (동반 규정이 다르게 적용돼요)</label>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-line" style="flex:1;" onclick="createDog()">등록하기</button>
+        <button class="btn-ghost2" onclick="renderDogs()">취소</button>
+      </div>
+    </div>`;
+}
+async function createDog(){
+  const name=document.getElementById('new-dog-name').value.trim();
+  const breed=document.getElementById('new-dog-breed').value;
+  const weight=document.getElementById('new-dog-weight').value.trim();
+  const size=document.getElementById('new-dog-size').value;
+  const guide=document.getElementById('new-dog-guide').checked;
+  if(!name || !weight){ alert('이름과 무게를 입력해 주세요.'); return; }
+  if(!size){ alert('반려견 크기를 선택해 주세요.'); return; }
+  if(!IS_LOGGED){ alert('반려견을 등록하려면 로그인이 필요해요.'); openModal('login'); return; }
+  const r=await api('/api/add-dog', {name, breed, weight, size, guide, photo:newDogPhoto});
+  if(r && r.success){
+    const tag = guide ? '안내견' : ({small:'소형견',medium:'중형견',large:'대형견'}[size]||'');
+    const desc = [breed, weight+'kg', tag].filter(Boolean).join(' · ');
+    USER_DOGS.push({name, breed, weight, size, guide, desc, photo:newDogPhoto});
+    renderDogs();
+  } else {
+    alert((r && r.message) || '등록에 실패했어요.');
+  }
+}
+function renderVerifyCard(query, r){
+  if(r && r.no_key){ // 데모 폴백
+    const demo=DEMO.food[0];
+    return demoVerifyCard(query, demo);
+  }
+  if(!r || !r.success) return `<div class="res-card unknown"><div class="res-head"><h4>${query}</h4><span class="res-badge unknown">오류</span></div><div class="res-msg">조회 중 문제가 발생했어요.</div></div>`;
+  const v=r.verdict;
+  const badge=verdictBadge(v);
+  let html=`<div class="res-card ${v}">`;
+  if(r.place && r.place.image) html+=`<img src="${r.place.image}" class="camp-img" onerror="this.style.display='none'" alt="">`;
+  html+=`<div class="res-head">
+      <h4>${r.place?r.place.title:query}</h4>
+      <span class="res-badge ${v}">${badge}</span></div>`;
+  if(r.place) html+=`<div class="res-addr">${r.place.addr||''} ${r.place.tel?'· 📞 '+r.place.tel:''}</div>`;
+  html+=`<div class="res-msg">${r.message}</div>`;
+  if(r.place && r.place.overview) html+=`<div class="res-msg" style="margin-top:6px;color:var(--ink2);">${r.place.overview}</div>`;
+  if((v==='ok'||v==='conditional'||v==='check'||v==='no_info') && r.detail) html+=detailRows(r.detail);
+  if(r.inquiry && r.place && r.place.tel)
+    html+=`<div class="res-msg" style="color:var(--amber-tx);">자세한 동반 조건은 방문 전 문의 · 📞 ${r.place.tel}</div>`;
+  if(r.place && r.place.homepage) html+=`<div style="margin-top:10px;"><a href="${r.place.homepage}" target="_blank" rel="noopener" class="camp-link">홈페이지 바로가기 ↗</a></div>`;
+  if(v!=='no' && v!=='unknown' && r.place){
+    html+=`<div class="res-actions"><button class="btn-pick" onclick='pickStop(${jsAttr(r.place)}, "${v}")'>일정에 담기</button></div>`;
+  } else if(v==='no'){
+    html+=`<div class="res-actions"><span style="font-size:12.5px;color:var(--red);">등록하신 반려견 기준 동반이 어려운 곳이에요.</span></div>`;
+  }
+  if(r.alternatives && r.alternatives.length){
+    html+=`<div class="alt-title">대신 이런 확실한 동반 가능처는 어때요?</div>`;
+    r.alternatives.forEach(a=>{ html+=altCard(a); });
+  }
+  html+=`</div>`;
+  return html;
+}
+function demoVerifyCard(query, demo){
+  return `<div class="res-card no_info">
+    <div class="demo-flag">데모 데이터 · TOURAPI_KEY 설정 시 실데이터로 전환</div>
+    <div class="res-head"><h4>${query}</h4><span class="res-badge no_info">정보 없음</span></div>
+    <div class="res-msg">이 장소에는 반려동물 동반 데이터가 없어 확정할 수 없습니다. 방문 전 전화 확인을 권장해요.</div>
+    <div class="alt-title">주변 확실한 동반 가능처</div>
+    ${DEMO.food.map(altCard).join('')}
+  </div>`;
+}
+function altCard(a){
+  const v=a.verdict||'check';
+  return `<div class="res-card ${v}" style="margin-top:8px; margin-bottom:0;">
+    ${a.image?`<img src="${a.image}" class="camp-img" onerror="this.style.display='none'" alt="">`:''}
+    <div class="res-head"><h4 style="font-size:15px;">${a.title}</h4><span class="res-badge ${v}">${verdictBadge(v)}</span></div>
+    <div class="res-addr">${a.addr||''} ${a.dist!=null?'· '+a.dist+'km':''} ${a.note?'· '+a.note:''}</div>
+    ${a.reason?`<div class="res-msg">${a.reason}</div>`:''}
+    ${a.overview?`<div class="res-msg">${a.overview}</div>`:''}
+    ${a.homepage?`<div style="margin-top:8px;"><a href="${a.homepage}" target="_blank" rel="noopener" class="camp-link">홈페이지 바로가기 ↗</a></div>`:''}
+    ${a.place_url?`<div style="margin-top:8px;"><a href="${a.place_url}" target="_blank" rel="noopener" class="camp-link">카카오 지도에서 장소 정보 보기 ↗</a></div>`:''}
+    ${v!=='no'?`<div class="res-actions"><button class="btn-pick" onclick='pickStop(${jsAttr(a)}, "${v}")'>일정에 담기</button></div>`:''}
+  </div>`;
+}
+/* 고캠핑 결과 카드 — 일반 장소 카드와 동일한 형식으로 통일 */
+function campCard(c, pickable){
+  const v=c.verdict||'no_info';
+  const reason = v==='ok' ? '등록하신 반려견과 함께 갈 수 있는 캠핑장이에요.'
+    : v==='no' ? '이 캠핑장은 반려동물 동반이 불가합니다.'
+    : (v==='check'||v==='conditional')
+      ? '일부 조건이 있는 캠핑장이에요. 방문 전 전화로 확인하는 걸 권장합니다.'
+      : '고캠핑 데이터에 동반 가능 여부가 기재돼 있지 않아 확인이 필요해요. 방문 전 전화 확인을 권장합니다.';
+  const p = {
+    title: c.title,
+    addr: (c.addr||'') + (c.induty ? ' · ' + c.induty : ''),
+    tel: c.tel, image: c.image, mapx: c.mapx, mapy: c.mapy,
+    verdict: v, reason: reason, overview: c.intro, note: c.note,
+    homepage: c.homepage,
+    extra: c.facility ? `<span class="k">부대시설</span> · ${c.facility}` : ''
+  };
+  return placeCard(p, (x)=>`pickStop(${jsAttr(x)},"${v}")`, '일정에 담기');
+}
+/* ============ 공통 카드 렌더 ============ */
+/* 둘러보기/추천 목록 노출 기준 통일:
+   동반 가능(ok) · 조건부(conditional) · 확인 필요(check) 는 모두 노출한다.
+   (동반 불가 no / 정보 없음 no_info / 미확인 unknown 만 제외) */
+function canBrowse(v){ return v==='ok' || v==='check' || v==='conditional'; }
+function verdictBadge(v){
+  if(v==='ok') return '동반 가능';
+  if(v==='no') return '동반 불가';
+  return '확인 필요';   // conditional·check·no_info·unknown 모두 확인 필요로 통합
+}
+function splitItems(s){
+  // 줄바꿈 / ' - ' / ' / ' 기준으로 항목 분리 + 앞의 '-·•*' 기호 및 원문 별표(*) 제거
+  return String(s)
+    .replace(/\*/g,'')                       // 원문에 섞인 별표(*) 모두 제거
+    .split(/\r?\n|\s+[-]\s+|\s+\/\s+/)
+    .map(x=>x.replace(/^[\s\-·•]+/,'').trim())
+    .filter(Boolean);
+}
+function detailRow(label, val){
+  const items=splitItems(val);
+  if(items.length<=1) return `<div><span class="k">${label}</span> · ${items[0]||String(val).replace(/\*/g,'').trim()}</div>`;
+  // 항목이 여러 개면 라벨을 위로, 각 항목을 · 붙여 줄바꿈(첫 항목 포함)
+  return `<div class="k-head"><span class="k">${label}</span></div>`
+       + items.map(it=>`<div class="k-item">· ${it}</div>`).join('');
+}
+function detailRows(d){
+  if(!d) return '';
+  const rows=[];
+  if(d.accompany_type) rows.push(detailRow('동반 유형', d.accompany_type));
+  if(d.possible_pet)  rows.push(detailRow('동반 가능 반려동물', d.possible_pet));
+  if(d.need_matter)   rows.push(detailRow('준비물', d.need_matter));
+  if(d.risk_matter)   rows.push(detailRow('유의·안전', d.risk_matter));
+  if(d.etc_info)      rows.push(detailRow('기타', d.etc_info));
+  return rows.length? `<div class="res-detail">${rows.join('')}</div>`:'';
+}
+function placeCard(p, cbFn, label){
+  const v=p.verdict||'ok';
+  const pickable = v!=='no' && v!=='unknown';
+  const inquiry = (p.inquiry && p.tel)
+    ? `<div class="res-msg" style="color:var(--gray-tx);">자세한 동반 조건은 방문 전 문의 · 📞 ${p.tel}</div>` : '';
+  return `
+    <div class="res-card ${v}">
+      ${p.image?`<img src="${p.image}" class="camp-img" onerror="this.style.display='none'" alt="">`:''}
+      <div class="res-head"><h4 style="font-size:16px;">${p.title}</h4><span class="res-badge ${v}">${verdictBadge(v)}</span></div>
+      <div class="res-addr">${p.addr||''} ${p.dist!=null?'· '+p.dist+'km':''} ${p.tel?'· 📞 '+p.tel:''}</div>
+      ${p.reason?`<div class="res-reason">${p.reason}</div>`:''}
+      ${p.category_name?`<div class="res-msg" style="margin-bottom:6px;color:var(--ink2);">${p.category_name}</div>`:''}
+      ${p.overview?`<div class="res-desc">${p.overview}</div>`:(p.note?`<div class="res-desc">${p.note}</div>`:'')}
+      ${detailRows(p.detail)}
+      ${p.extra?`<div class="res-detail"><div>${p.extra}</div></div>`:''}
+      ${inquiry}
+      ${p.homepage?`<div style="margin-top:10px;"><a href="${p.homepage}" target="_blank" rel="noopener" class="camp-link">홈페이지 바로가기 ↗</a></div>`:''}
+      ${p.place_url?`<div style="margin-top:8px;"><a href="${p.place_url}" target="_blank" rel="noopener" class="camp-link">카카오 지도에서 장소 정보 보기 ↗</a></div>`:''}
+      ${pickable
+        ? `<div class="res-actions"><button class="btn-pick" onclick='${cbFn(p)}'>${label}</button></div>`
+        : (v==='no'?`<div class="res-actions"><span style="font-size:12.5px;color:var(--red);">등록하신 반려견 기준 동반이 어려운 곳이에요.</span></div>`:'')}
+    </div>`;
+}
+function listCards(places, cbFn, label){
+  if(!places || !places.length) return `<div class="cart-empty">조회 결과가 없어요. 지역/키워드를 바꿔보세요.</div>`;
+  return places.map(p=>placeCard(p, cbFn, label)).join('');
+}
+function jsAttr(o){ return JSON.stringify(o).replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/</g,'&lt;'); }
+/* ============ 선택 일정(cart) ============ */
+function pickStop(p, verdict){
+  if(S.stops.some(s=>s.name===p.title)){ return; }
+  S.stops.push({
+    day:S.activeDay+1, name:p.title, addr:p.addr||'',
+    lat:p.mapy, lng:p.mapx, verdict:verdict||'ok', note:p.note||''
+  });
+  renderCart();
+  refreshMapFromCart();
+  scheduleDraftSave();
+  // 버튼 상태 표시
+  event && event.target && (event.target.textContent='선택됨 ✓', event.target.classList.add('added'), event.target.disabled=true);
+}
+function renderCart(){
+  const box=document.getElementById('cart-list');
+  if(!box) return;
+  if(S.stops.length===0){ box.innerHTML=`<div class="cart-empty">아직 선택한 장소가 없어요.</div>`; return; }
+  box.innerHTML=S.stops.map((s,i)=>`
+    <div class="cart-item"><span>${s.day}일차 · ${s.name}</span>
+      <span class="x" onclick="rmStop(${i})">삭제</span></div>`).join('');
+}
+function rmStop(i){ S.stops.splice(i,1); renderCart(); refreshMapFromCart(); scheduleDraftSave(); }
+/* ============ 카카오 지도 ============ */
+let MAP=null, MARKERS=[], kakaoReady=false;
+function loadKakao(cb){
+  if(!KAKAO_KEY){ cb(false); return; }
+  if(window.kakao && window.kakao.maps){ cb(true); return; }
+  const s=document.createElement('script');
+  s.src=`//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_KEY}&autoload=false`;
+  s.onload=()=>kakao.maps.load(()=>{ kakaoReady=true; cb(true); });
+  s.onerror=()=>cb(false);
+  document.head.appendChild(s);
+}
+function initMap(holderId){
+  const holder=document.getElementById(holderId);
+  if(!holder) return;
+  loadKakao(ok=>{
+    if(!ok){
+      holder.innerHTML=`<div class="map-fallback"><div>
+        <div style="font-family:var(--serif); font-size:16px;">🗺️ 지도 미리보기</div>
+        <div style="font-size:13px; margin-top:6px;">카카오 JavaScript 키(KAKAO_JS_KEY)를 설정하면<br>선택한 장소가 지도에 표시됩니다.</div>
+        <div class="mf-list" id="${holderId}-list"></div>
+      </div></div>`;
+      drawFallbackList(holderId);
+      return;
+    }
+    holder.innerHTML=`<div id="${holderId}-canvas" style="width:100%;height:420px;"></div>`;
+    const center=new kakao.maps.LatLng(36.2,127.9);   // 기본: 한반도 전체
+    MAP=new kakao.maps.Map(document.getElementById(holderId+'-canvas'), {center, level:13});
+    drawStops(holderId);
+  });
+}
+function clearMarkers(){ MARKERS.forEach(m=>m.setMap(null)); MARKERS=[]; }
+function markerImg(kind){
+  const color = kind==='stop' ? '#2f8f5b' : '#3b6ea5';   // 담은 일정=초록, 검색·검증결과=파랑
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="34" viewBox="0 0 26 34"><path d="M13 0C5.8 0 0 5.8 0 13c0 9 13 21 13 21s13-12 13-21C26 5.8 20.2 0 13 0z" fill="${color}"/><circle cx="13" cy="12.5" r="4.6" fill="#fff"/></svg>`;
+  return new kakao.maps.MarkerImage('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg),
+    new kakao.maps.Size(26,34), {offset:new kakao.maps.Point(13,34)});
+}
+function plot(points){
+  if(!MAP || !window.kakao){ return; }
+  clearMarkers();
+  const bounds=new kakao.maps.LatLngBounds();
+  points.forEach(p=>{
+    if(p.lat==null||p.lng==null) return;
+    const pos=new kakao.maps.LatLng(p.lat, p.lng);
+    const mk=new kakao.maps.Marker({position:pos, map:MAP, image:markerImg(p.kind),
+                                    zIndex:(p.kind==='stop'?5:1)});
+    const iw=new kakao.maps.InfoWindow({content:`<div style="padding:6px 10px;font-size:12px;">${p.name||p.title}</div>`});
+    kakao.maps.event.addListener(mk,'mouseover',()=>iw.open(MAP,mk));
+    kakao.maps.event.addListener(mk,'mouseout',()=>iw.close());
+    MARKERS.push(mk); bounds.extend(pos);
+  });
+  if(points.some(p=>p.lat!=null)) MAP.setBounds(bounds);
+}
+function stopsAsPoints(){ return S.stops.map(s=>({lat:s.lat,lng:s.lng,name:s.name,kind:'stop'})); }
+function drawStops(holderId){
+  if(MAP) plot(stopsAsPoints());
+  else drawFallbackList(holderId);
+}
+let LAST_RESULTS=[];
+function refreshMapWith(places){
+  LAST_RESULTS=places.map(p=>({lat:p.mapy,lng:p.mapx,name:p.title,kind:'result'}));
+  if(MAP) plot([...LAST_RESULTS, ...stopsAsPoints()]);
+  else drawFallbackList('map-holder');
+}
+function refreshMapFromResults(){ refreshMapFromCart(); }
+function refreshMapFromCart(){
+  if(MAP) plot(stopsAsPoints());
+  else drawFallbackList('map-holder');
+}
+function drawFallbackList(holderId){
+  const el=document.getElementById(holderId+'-list');
+  if(!el) return;
+  const stops=S.stops.map(s=>`🟢 ${s.name}`);
+  const res=LAST_RESULTS.map(p=>`🔵 ${p.name}`);
+  const pts=[...stops, ...res];
+  el.innerHTML = pts.length? pts.join('<br>') : '표시할 장소가 아직 없어요.';
+}
+/* ============ STAGE 3 : 확정 ============ */
+function buildConfirm(){
+  const n=nights();
+  document.getElementById('confirm-trip-title').innerHTML=`<b>${escapeHtml(S.title||'반려견 동반 여행')}</b><span>${S.start} ~ ${S.end} · ${n}박 ${n+1}일 · ${S.dogs.map(d=>escapeHtml(d.name)).join(', ')}</span>`;
+  const byDay={};
+  S.stops.forEach(s=>{ (byDay[s.day]=byDay[s.day]||[]).push(s); });
+  let html=`<div class="cart" style="margin-top:0;"><h4>선택한 일정 · ${S.stops.length}곳</h4>`;
+  Object.keys(byDay).sort().forEach(day=>{
+    html+=`<div style="font-weight:700;margin:10px 0 4px;font-size:13.5px;">${day}일차</div>`;
+    byDay[day].forEach(s=>{ html+=`<div class="cart-item"><span>${escapeHtml(s.name)}</span><span style="color:var(--green);font-size:12px;">${s.verdict==='check'?'확인 필요':'동반 확인'}</span></div>`; });
+  });
+  html+=`</div>`;
+  document.getElementById('confirm-summary').innerHTML=html;
+}
+function escapeHtml(v){ return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c])); }
+
+let draftTimer=null, draftSaving=false;
+function scheduleDraftSave(){
+  clearTimeout(draftTimer);
+  draftTimer=setTimeout(()=>saveDraft(false), 500);
+}
+async function saveDraft(showStatus=false){
+  if(!IS_LOGGED || draftSaving) return;
+  const title=(S.title || document.getElementById('trip-name')?.value || '').trim();
+  if(!title || !S.area_code || !S.start || !S.end || !S.dogs.length) return;
+  draftSaving=true;
+  const status=document.getElementById('draft-save-status');
+  if(status && showStatus) status.textContent='여행 계획을 저장하는 중…';
+  const r=await api('/api/trip/save', {
+    id:S.tripId, title, type:S.type, start:S.start, end:S.end,
+    dogs:S.dogs.map(d=>d.name), stops:S.stops, region:S.regionText, region_do:S.regionDo,
+    area_code:S.area_code, sigungu_code:S.sigungu_code, sigungu_name:S.sigungu_name, confirmed:S.confirmed
+  });
+  if(r && r.success){
+    S.tripId=r.id; S.title=title;
+    if(status) status.textContent='✓ 자동 저장됨';
+  } else if(status) status.textContent='자동 저장에 실패했어요. 다시 시도해 주세요.';
+  draftSaving=false;
+}
+async function confirmTrip(){
+  if(!IS_LOGGED){ alert('여행을 저장하려면 로그인이 필요해요.'); openModal('login'); return; }
+  await saveDraft(false);
+  const r=await api('/api/trip/save', {
+    id:S.tripId, title:S.title, type:S.type, start:S.start, end:S.end,
+    dogs:S.dogs.map(d=>d.name), stops:S.stops, region:S.regionText, region_do:S.regionDo,
+    area_code:S.area_code, sigungu_code:S.sigungu_code, sigungu_name:S.sigungu_name, confirmed:true
+  });
+  if(r.success){ alert('여행 계획이 확정되었어요. 마이페이지에서 확인할 수 있어요!'); location.href='/mypage'; }
+  else { alert(r.message||'저장에 실패했어요.'); }
+}
+/* ============ fetch 헬퍼 ============ */
+async function api(url, body){
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    return await res.json();
+  }catch(e){ return {success:false, no_key:true, message:'네트워크 오류'}; }
+}
+
+/* ============ 초기화 ============ */
+renderCal();
+renderDogs();
+document.getElementById('setup-region').innerHTML = regionBoxHTML('setup','pet');
+initRegionBoxes('setup','pet');
+
+function hydrateInitialTrip(){
+  if(!INITIAL_TRIP) return;
+  S.tripId=INITIAL_TRIP._id||null;
+  S.title=INITIAL_TRIP.title||'';
+  S.confirmed=!!INITIAL_TRIP.confirmed;
+  S.start=INITIAL_TRIP.start||null;
+  S.end=INITIAL_TRIP.end||null;
+  S.regionDo=INITIAL_TRIP.region_do||INITIAL_TRIP.regionDo||'';
+  S.regionText=INITIAL_TRIP.region||'';
+  S.area_code=INITIAL_TRIP.area_code||null;
+  S.sigungu_code=INITIAL_TRIP.sigungu_code||null;
+  S.sigungu_name=INITIAL_TRIP.sigungu_name||null;
+  S.area=S.regionText;
+  S.stops=Array.isArray(INITIAL_TRIP.stops)?INITIAL_TRIP.stops.slice():[];
+  const names=new Set(INITIAL_TRIP.dogs||[]);
+  S.dogs=USER_DOGS.filter(d=>names.has(d.name));
+  const titleEl=document.getElementById('trip-name');
+  if(titleEl) titleEl.value=S.title;
+  syncSetupSteps();
+  paintRange();
+  const dogChips=[...document.querySelectorAll('.dog-chip')];
+  dogChips.forEach(c=>{ if(names.has(USER_DOGS[+c.dataset.i]?.name)) c.classList.add('on'); });
+  if(S.regionDo){
+    // 지역 박스는 API 목록을 다시 불러온 뒤 선택 상태를 복원한다.
+    setTimeout(()=>restoreInitialRegion(), 250);
+  }
+  if(S.stops.length){
+    setTimeout(()=>{ goStage(1); buildStage1(); initMap('map-holder'); }, 300);
+  }
+}
+async function restoreInitialRegion(){
+  const doName=Object.keys(REGIONS).find(n=>shortName(n)===shortName(S.regionDo||S.regionText)) || S.regionDo;
+  const doBox=document.getElementById('setup-dobox');
+  const doEl=[...doBox.querySelectorAll('.rbox')].find(x=>x.textContent.trim()===shortName(doName));
+  if(doEl) await pickDo('setup', doName, REGIONS[doName]?.code||S.area_code, doEl);
+  const siBox=document.getElementById('setup-sibox');
+  const siEl=[...siBox.querySelectorAll('.rbox')].find(x=>x.textContent.trim()===(S.sigungu_name||shortName(doName)+' 전체')) || [...siBox.querySelectorAll('.rbox')].find(x=>x.textContent.trim()===shortName(doName)+' 전체');
+  if(siEl) pickSi('setup', S.sigungu_code, S.sigungu_name||'전체', siEl);
+  const titleEl=document.getElementById('trip-name'); if(titleEl) titleEl.value=S.title;
+}
+const tripNameInput=document.getElementById('trip-name');
+if(tripNameInput){ tripNameInput.addEventListener('input', ()=>{ S.title=tripNameInput.value.trim(); scheduleDraftSave(); }); tripNameInput.addEventListener('blur', ()=>saveDraft(false)); }
+hydrateInitialTrip();
+
+/* 이 페이지로 되돌아오면(다른 페이지 갔다 뒤로가기 등) 둘러보기 탭은 초기 상태로 리셋 */
+function resetRecTab(){
+  activeRecTab=null;
+  if(typeof renderRecTabs==='function') renderRecTabs();
+  const box=document.getElementById('rec-results');
+  if(box) box.innerHTML=`<div class="cart-empty">위 카테고리(숙소·식당·카페·관광지·캠핑)를 눌러 동반 가능한 곳을 둘러보세요.</div>`;
+}
+window.addEventListener('pageshow', function(e){ if(e.persisted) resetRecTab(); });
+
+</script>
+{% endblock %}
