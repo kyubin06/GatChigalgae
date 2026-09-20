@@ -3,3 +3,4 @@ pymongo
 werkzeug
 requests
 python-dotenv
+gunicorn
